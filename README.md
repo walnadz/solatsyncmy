@@ -1,8 +1,8 @@
 # Solat Sync MY - Home Assistant Integration
 
-[![GitHub Release](https://img.shields.io/github/release/walnadz/waktu-solat-malaysia.svg?style=flat-square)](https://github.com/walnadz/waktu-solat-malaysia/releases)
-[![GitHub Activity](https://img.shields.io/github/commit-activity/y/walnadz/waktu-solat-malaysia.svg?style=flat-square)](https://github.com/walnadz/waktu-solat-malaysia/commits/main)
-[![License](https://img.shields.io/github/license/walnadz/waktu-solat-malaysia.svg?style=flat-square)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/release/walnadz/solatsyncmy.svg?style=flat-square)](https://github.com/walnadz/solatsyncmy/releases)
+[![GitHub Activity](https://img.shields.io/github/commit-activity/y/walnadz/solatsyncmy.svg?style=flat-square)](https://github.com/walnadz/solatsyncmy/commits/main)
+[![License](https://img.shields.io/github/license/walnadz/solatsyncmy.svg?style=flat-square)](LICENSE)
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/hacs/integration)
 
 A comprehensive Home Assistant integration for Malaysian prayer times (Waktu Solat) with automated azan playback functionality.
@@ -26,14 +26,14 @@ A comprehensive Home Assistant integration for Malaysian prayer times (Waktu Sol
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add `https://github.com/walnadz/waktu-solat-malaysia` as a custom repository with category "Integration"
+5. Add `https://github.com/walnadz/solatsyncmy` as a custom repository with category "Integration"
 6. Install "Solat Sync MY"
 7. Restart Home Assistant
 
 ### Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/walnadz/waktu-solat-malaysia/releases)
-2. Extract the `waktu_solat_malaysia` folder to your `custom_components` directory
+1. Download the latest release from [GitHub Releases](https://github.com/walnadz/solatsyncmy/releases)
+2. Extract the `solatsyncmy` folder to your `custom_components` directory
 3. Restart Home Assistant
 
 ## Configuration
@@ -59,29 +59,29 @@ A comprehensive Home Assistant integration for Malaysian prayer times (Waktu Sol
 
 ### Sensors
 
-- `sensor.waktu_solat_fajr` - Fajr prayer time
-- `sensor.waktu_solat_dhuhr` - Dhuhr prayer time  
-- `sensor.waktu_solat_asr` - Asr prayer time
-- `sensor.waktu_solat_maghrib` - Maghrib prayer time
-- `sensor.waktu_solat_isha` - Isha prayer time
-- `sensor.waktu_solat_next_prayer` - Next prayer information
+- `sensor.solatsyncmy_fajr` - Fajr prayer time
+- `sensor.solatsyncmy_dhuhr` - Dhuhr prayer time  
+- `sensor.solatsyncmy_asr` - Asr prayer time
+- `sensor.solatsyncmy_maghrib` - Maghrib prayer time
+- `sensor.solatsyncmy_isha` - Isha prayer time
+- `sensor.solatsyncmy_next_prayer` - Next prayer information
 
 ### Switches
 
-- `switch.waktu_solat_azan_automation` - Main azan automation toggle
-- `switch.waktu_solat_azan_fajr` - Fajr azan toggle
-- `switch.waktu_solat_azan_dhuhr` - Dhuhr azan toggle
-- `switch.waktu_solat_azan_asr` - Asr azan toggle
-- `switch.waktu_solat_azan_maghrib` - Maghrib azan toggle
-- `switch.waktu_solat_azan_isha` - Isha azan toggle
+- `switch.solatsyncmy_azan_automation` - Main azan automation toggle
+- `switch.solatsyncmy_azan_fajr` - Fajr azan toggle
+- `switch.solatsyncmy_azan_dhuhr` - Dhuhr azan toggle
+- `switch.solatsyncmy_azan_asr` - Asr azan toggle
+- `switch.solatsyncmy_azan_maghrib` - Maghrib azan toggle
+- `switch.solatsyncmy_azan_isha` - Isha azan toggle
 
 ## Services
 
-### `waktu_solat_malaysia.refresh_prayer_times`
+### `solatsyncmy.refresh_prayer_times`
 
 Manually refresh prayer times data.
 
-### `waktu_solat_malaysia.play_azan`
+### `solatsyncmy.play_azan`
 
 Manually play azan for a specific prayer.
 
@@ -118,7 +118,7 @@ automation:
   - alias: "Prayer Time Notification"
     trigger:
       - platform: state
-        entity_id: sensor.waktu_solat_next_prayer
+        entity_id: sensor.solatsyncmy_next_prayer
     action:
       - service: notify.mobile_app_your_phone
         data:
@@ -133,14 +133,14 @@ automation:
   - alias: "Weekend Azan Only"
     trigger:
       - platform: time
-        at: sensor.waktu_solat_fajr
+        at: sensor.solatsyncmy_fajr
     condition:
       - condition: time
         weekday:
           - sat
           - sun
     action:
-      - service: waktu_solat_malaysia.play_azan
+      - service: solatsyncmy.play_azan
         data:
           prayer: fajr
           media_player: media_player.bedroom_speaker
