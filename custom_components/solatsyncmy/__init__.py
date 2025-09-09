@@ -280,8 +280,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN)
             # Remove services when no more integrations are loaded
-            if hass.services.has_service(DOMAIN, "play_azan"):
-                hass.services.async_remove(DOMAIN, "play_azan")
+            services_to_remove = ["refresh_prayer_times", "play_azan", "test_audio"]
+            for service_name in services_to_remove:
+                if hass.services.has_service(DOMAIN, service_name):
+                    hass.services.async_remove(DOMAIN, service_name)
     
     return unload_ok
 
@@ -293,6 +295,37 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def _register_services(hass: HomeAssistant) -> None:
     """Register services for the integration."""
+    
+    async def handle_refresh_prayer_times(call):
+        """Handle the refresh_prayer_times service call."""
+        entity_id = call.data.get("entity_id")
+        
+        _LOGGER.info("Service call: refresh_prayer_times for entity %s", entity_id)
+        
+        # Find the coordinator(s) to refresh
+        coordinators_to_refresh = []
+        
+        if entity_id:
+            # Refresh specific entity's coordinator
+            for entry_id, coordinator in hass.data[DOMAIN].items():
+                # Check if this coordinator has the requested entity
+                if any(entity_id in str(entity) for entity in coordinator.data.get("sensors", [])):
+                    coordinators_to_refresh.append(coordinator)
+        else:
+            # Refresh all coordinators
+            coordinators_to_refresh = list(hass.data[DOMAIN].values())
+        
+        if not coordinators_to_refresh:
+            _LOGGER.warning("No coordinators found to refresh")
+            return
+            
+        # Refresh coordinators
+        for coordinator in coordinators_to_refresh:
+            try:
+                await coordinator.async_request_refresh()
+                _LOGGER.info("Successfully refreshed prayer times data")
+            except Exception as e:
+                _LOGGER.error("Failed to refresh prayer times: %s", e)
     
     async def handle_play_azan(call):
         """Handle the play_azan service call."""
@@ -326,7 +359,13 @@ async def _register_services(hass: HomeAssistant) -> None:
         www_path = os.path.join(hass.config.path("www"), "solatsyncmy", audio_file)
         if not os.path.exists(www_path):
             _LOGGER.error("Audio file not found: %s", www_path)
-            return
+            _LOGGER.info("Attempting to setup audio files...")
+            await _setup_audio_files(hass)
+            
+            # Check again after setup
+            if not os.path.exists(www_path):
+                _LOGGER.error("Failed to setup audio file: %s", www_path)
+                return
 
         _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
 
@@ -391,8 +430,40 @@ async def _register_services(hass: HomeAssistant) -> None:
         
         _LOGGER.error("All test attempts failed for %s", media_player)
     
-    # Register services
-    hass.services.async_register(DOMAIN, "play_azan", handle_play_azan)
-    hass.services.async_register(DOMAIN, "test_audio", handle_test_audio)
+    # Define service schemas
+    REFRESH_PRAYER_TIMES_SCHEMA = vol.Schema({
+        vol.Optional("entity_id"): str,
+    })
     
-    _LOGGER.info("Registered services: play_azan, test_audio") 
+    TEST_AUDIO_SCHEMA = vol.Schema({
+        vol.Required("media_player"): str,
+        vol.Optional("audio_file", default="azan.mp3"): str,
+        vol.Optional("volume", default=0.5): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
+    })
+    
+    # Register services with schemas (only if not already registered)
+    if not hass.services.has_service(DOMAIN, "refresh_prayer_times"):
+        hass.services.async_register(
+            DOMAIN, 
+            "refresh_prayer_times", 
+            handle_refresh_prayer_times, 
+            schema=REFRESH_PRAYER_TIMES_SCHEMA
+        )
+    
+    if not hass.services.has_service(DOMAIN, "play_azan"):
+        hass.services.async_register(
+            DOMAIN, 
+            "play_azan", 
+            handle_play_azan, 
+            schema=PLAY_AZAN_SERVICE_SCHEMA
+        )
+    
+    if not hass.services.has_service(DOMAIN, "test_audio"):
+        hass.services.async_register(
+            DOMAIN, 
+            "test_audio", 
+            handle_test_audio, 
+            schema=TEST_AUDIO_SCHEMA
+        )
+    
+    _LOGGER.info("Registered services: refresh_prayer_times, play_azan, test_audio") 

@@ -9,7 +9,7 @@ refresh_prayer_times:
       selector:
         entity:
           domain: sensor
-          integration: waktu_solat_malaysia
+          integration: solatsyncmy
 
 play_azan:
   name: Play Azan
