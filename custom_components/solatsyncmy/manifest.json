@@ -1,13 +1,13 @@
 {
   "domain": "solatsyncmy",
   "name": "Solat Sync MY",
-  "codeowners": ["@walnadz"],
+  "version": "1.0.12",
   "config_flow": true,
-  "dependencies": [],
   "documentation": "https://github.com/walnadz/solatsyncmy",
-  "homeassistant": "2023.1.0",
-  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/walnadz/solatsyncmy/issues",
-  "requirements": ["requests"],
-  "version": "1.0.11"
+  "dependencies": [],
+  "codeowners": ["@walnadz"],
+  "requirements": [],
+  "iot_class": "cloud_polling",
+  "integration_type": "service"
 } 

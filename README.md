@@ -1,50 +1,44 @@
-# Solat Sync MY - Home Assistant Integration
+# Solat Sync MY - Malaysian Prayer Times Integration
 
-[![GitHub Release](https://img.shields.io/github/release/walnadz/solatsyncmy.svg?style=flat-square)](https://github.com/walnadz/solatsyncmy/releases)
-[![GitHub Activity](https://img.shields.io/github/commit-activity/y/walnadz/solatsyncmy.svg?style=flat-square)](https://github.com/walnadz/solatsyncmy/commits/main)
-[![License](https://img.shields.io/github/license/walnadz/solatsyncmy.svg?style=flat-square)](LICENSE)
-[![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/hacs/integration)
+A comprehensive Home Assistant integration for Malaysian prayer times with automated azan (call to prayer) playback using local Malaysian time zones.
 
-A comprehensive Home Assistant integration for Malaysian prayer times (Waktu Solat) with automated azan playback functionality.
+## ✨ Features
 
-## Features
+- **🕌 Accurate Prayer Times**: Real-time prayer times for all Malaysian zones
+- **🔊 Automated Azan Playback**: Customizable azan automation for each prayer
+- **🎵 Local Audio Support**: Support for custom azan files and local playback
+- **📱 Smart Media Player Control**: Automatic power-on and volume management
+- **🇲🇾 Malay Prayer Names**: Uses authentic Malay prayer names (Subuh, Zohor, Asar, Maghrib, Isyak)
+- **⏰ Next Day Prayer Times**: Shows next day times after Isyak
+- **🛠️ Advanced Diagnostics**: Built-in audio testing and troubleshooting tools
 
-- **Prayer Time Sensors**: Individual sensors for all five daily prayers (Fajr, Dhuhr, Asr, Maghrib, Isha)
-- **Next Prayer Information**: Dedicated sensor showing the next upcoming prayer and time remaining
-- **Automated Azan Playback**: Automatically play azan at prayer times through any media player
-- **Individual Prayer Control**: Enable/disable azan for specific prayers
-- **Malaysian Zones**: Support for all Malaysian prayer time zones
-- **Hijri Date**: Display current Hijri date information
-- **Real-time Updates**: Automatic daily updates of prayer times
-- **Beautiful UI**: Modern configuration interface with dropdown selectors
+## 📦 Installation
 
-## Installation
+### Via HACS (Recommended)
 
-### HACS (Recommended)
-
-1. Open HACS in your Home Assistant instance
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add `https://github.com/walnadz/solatsyncmy` as a custom repository with category "Integration"
-6. Install "Solat Sync MY"
-7. Restart Home Assistant
+1. Open HACS in Home Assistant
+2. Go to **Integrations**
+3. Click the **+** button
+4. Search for "Solat Sync MY"
+5. Click **Install**
+6. Restart Home Assistant
 
 ### Manual Installation
 
 1. Download the latest release from [GitHub Releases](https://github.com/walnadz/solatsyncmy/releases)
-2. Extract the `solatsyncmy` folder to your `custom_components` directory
+2. Extract the files to `custom_components/solatsyncmy/` in your Home Assistant config directory
 3. Restart Home Assistant
 
-## Configuration
+## ⚙️ Configuration
 
 ### Initial Setup
 
-1. Go to **Configuration** → **Integrations**
+1. Go to **Settings** → **Devices & Services**
 2. Click **Add Integration**
 3. Search for "Solat Sync MY"
 4. Select your Malaysian zone from the dropdown
-5. Click **Submit**
+5. **Optional**: Select a media player for automated azan playback
+6. Click **Submit**
 
 ### Azan Automation Setup
 
@@ -52,45 +46,83 @@ A comprehensive Home Assistant integration for Malaysian prayer times (Waktu Sol
 2. Enable "Azan Automation"
 3. Select a media player for azan playback
 4. Adjust volume level (0.1 - 1.0)
-5. Enable/disable azan for individual prayers
+5. Enable/disable azan for individual prayers:
+   - **Azan Subuh** (Fajr)
+   - **Azan Zohor** (Dhuhr)
+   - **Azan Asar** (Asr)
+   - **Azan Maghrib** (Maghrib)
+   - **Azan Isyak** (Isha)
 6. Click **Submit**
 
-## Entities Created
+## 🎵 Local Audio Files
+
+### Adding Your Own Azan Files
+
+1. **Place audio files** in Home Assistant's `config/www/solatsyncmy/` directory
+2. **Supported formats**: MP3, WAV, M4A, OGG
+3. **File names**:
+   - `azan.mp3` - For Zohor, Asar, Maghrib, Isyak
+   - `azanfajr.mp3` - For Subuh (different azan)
+
+### Custom Prayer-Specific Files
+
+You can also use prayer-specific files:
+- `azan_fajr.mp3` or `subuh.mp3` - For Subuh
+- `azan_dhuhr.mp3` or `zohor.mp3` - For Zohor  
+- `azan_asr.mp3` or `asar.mp3` - For Asar
+- `azan_maghrib.mp3` or `maghrib.mp3` - For Maghrib
+- `azan_isha.mp3` or `isyak.mp3` - For Isyak
+
+### Audio File Locations
+
+The integration automatically scans these locations:
+- `/config/www/solatsyncmy/` (recommended)
+- `/config/www/`
+- `/config/media/`
+- `/media/`
+- `/share/`
+
+## 📊 Entities Created
 
 ### Sensors
 
-- `sensor.solatsyncmy_fajr` - Fajr prayer time
-- `sensor.solatsyncmy_dhuhr` - Dhuhr prayer time  
-- `sensor.solatsyncmy_asr` - Asr prayer time
+- `sensor.solatsyncmy_subuh` - Subuh (Fajr) prayer time
+- `sensor.solatsyncmy_zohor` - Zohor (Dhuhr) prayer time  
+- `sensor.solatsyncmy_asar` - Asar (Asr) prayer time
 - `sensor.solatsyncmy_maghrib` - Maghrib prayer time
-- `sensor.solatsyncmy_isha` - Isha prayer time
+- `sensor.solatsyncmy_isyak` - Isyak (Isha) prayer time
 - `sensor.solatsyncmy_next_prayer` - Next prayer information
 
-### Switches
+### Switches (Ordered for Better Control)
 
-- `switch.solatsyncmy_azan_automation` - Main azan automation toggle
-- `switch.solatsyncmy_azan_fajr` - Fajr azan toggle
-- `switch.solatsyncmy_azan_dhuhr` - Dhuhr azan toggle
-- `switch.solatsyncmy_azan_asr` - Asr azan toggle
-- `switch.solatsyncmy_azan_maghrib` - Maghrib azan toggle
-- `switch.solatsyncmy_azan_isha` - Isha azan toggle
+1. `switch.solatsyncmy_azan_automation` - **Main azan automation toggle**
+2. `switch.solatsyncmy_azan_subuh` - Subuh azan toggle
+3. `switch.solatsyncmy_azan_zohor` - Zohor azan toggle
+4. `switch.solatsyncmy_azan_asar` - Asar azan toggle
+5. `switch.solatsyncmy_azan_maghrib` - Maghrib azan toggle
+6. `switch.solatsyncmy_azan_isyak` - Isyak azan toggle
 
-## Services
-
-### `solatsyncmy.refresh_prayer_times`
-
-Manually refresh prayer times data.
+## 🛠️ Services
 
 ### `solatsyncmy.play_azan`
 
 Manually play azan for a specific prayer.
 
 **Parameters:**
-- `prayer` (required): Which prayer's azan to play (fajr, dhuhr, asr, maghrib, isha)
-- `media_player` (optional): Media player entity to use
+- `prayer` (required): Prayer name (fajr, dhuhr, asr, maghrib, isha)
+- `media_player` (required): Media player entity ID
 - `volume` (optional): Volume level (0.1-1.0, default: 0.7)
 
-## Malaysian Zones Supported
+### `solatsyncmy.test_audio`
+
+Test audio playback with comprehensive diagnostics.
+
+**Parameters:**
+- `media_player` (required): Media player entity ID
+- `audio_file` (optional): Audio file to test (default: azan.mp3)
+- `volume` (optional): Volume level (0.1-1.0, default: 0.5)
+
+## 🇲🇾 Malaysian Zones Supported
 
 The integration supports all official Malaysian prayer time zones:
 
@@ -109,88 +141,76 @@ The integration supports all official Malaysian prayer time zones:
 - **Terengganu**: TRG01-TRG04
 - **Wilayah Persekutuan**: WLY01 (KL/Putrajaya), WLY02 (Labuan)
 
-## Automation Examples
+## 🚀 Advanced Features
 
-### Prayer Time Notifications
+### Smart Prayer Time Display
 
-```yaml
-automation:
-  - alias: "Prayer Time Notification"
-    trigger:
-      - platform: state
-        entity_id: sensor.solatsyncmy_next_prayer
-    action:
-      - service: notify.mobile_app_your_phone
-        data:
-          title: "Prayer Time"
-          message: "{{ trigger.to_state.state }} prayer time is approaching"
-```
+- **Current Day**: Shows today's prayer times
+- **After Isyak**: Automatically shows next day's prayer times
+- **Next Prayer Calculation**: Intelligent next prayer detection
 
-### Conditional Azan Playback
+### Enhanced Audio System
 
-```yaml
-automation:
-  - alias: "Weekend Azan Only"
-    trigger:
-      - platform: time
-        at: sensor.solatsyncmy_fajr
-    condition:
-      - condition: time
-        weekday:
-          - sat
-          - sun
-    action:
-      - service: solatsyncmy.play_azan
-        data:
-          prayer: fajr
-          media_player: media_player.bedroom_speaker
-          volume: 0.5
-```
+- **Auto Power-On**: Automatically turns on media players
+- **Smart Timing**: Proper delays between commands
+- **Success Verification**: Confirms playback started
+- **Local File Priority**: Prefers local custom files
+- **Fallback Support**: Multiple audio source locations
 
-## Troubleshooting
+### Troubleshooting Tools
 
-### Azan Not Playing
+- **Built-in Diagnostics**: Comprehensive audio testing
+- **File Detection**: Automatic audio file scanning
+- **Debug Logging**: Detailed step-by-step logging
+- **Error Recovery**: Graceful handling of failed playback
 
-1. Ensure azan automation is enabled
-2. Check that the selected media player exists and is available
-3. Verify azan files are present in the integration directory
-4. Check Home Assistant logs for error messages
+## 🐛 Troubleshooting
 
-### Prayer Times Not Updating
+### Audio Not Playing?
 
-1. Check internet connection
-2. Verify the API endpoint is accessible
-3. Check integration logs for API errors
-4. Try refreshing manually using the service
+1. **Test your setup**: Use the `solatsyncmy.test_audio` service
+2. **Check files**: Ensure audio files exist in `/config/www/solatsyncmy/`
+3. **Media player**: Verify your media player is working
+4. **File size**: Ensure audio files are > 1KB (not placeholders)
+5. **Check logs**: Look for integration logs in Settings → System → Logs
 
-### Zone Not Found
+### Common Issues
 
-1. Ensure you selected a valid Malaysian zone code
-2. Check the zone list in the configuration
-3. Reconfigure the integration if needed
+- **Media player not found**: Ensure entity ID is correct
+- **Audio files missing**: Place MP3 files in correct directory
+- **Network issues**: Check Home Assistant's network connectivity
+- **Volume too low**: Increase volume in configuration
 
-## Contributing
+## 📝 Changelog
+
+### v1.0.12 - Major Enhancements
+- ✅ **Malay Prayer Names**: Subuh, Zohor, Asar, Maghrib, Isyak
+- ✅ **Media Player Setup**: Added to initial configuration
+- ✅ **Control Ordering**: Main automation first, then prayers in order
+- ✅ **Next Day Times**: Shows next day prayer times after Isyak
+- ✅ **Local Audio Support**: Enhanced local file detection and playback
+- ✅ **Advanced Diagnostics**: Comprehensive audio testing tools
+- ✅ **Smart Audio System**: Auto power-on, timing, and verification
+
+### v1.0.11 - Audio Playback Fix
+- 🔧 Fixed media player state management
+- 🔧 Added proper command timing
+- 🔧 Enhanced error handling and logging
+
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Credits
+## 🙏 Credits
 
-- Prayer time data provided by [Waktu Solat API](https://api.waktusolat.app/)
-- Inspired by the Malaysian Muslim community's need for accurate prayer times
-- Built with ❤️ for the Home Assistant community
-
-## Support
-
-If you find this integration helpful, please consider:
-- ⭐ Starring the repository
-- 🐛 Reporting bugs and issues
-- 💡 Suggesting new features
-- 🔄 Contributing code improvements
+- Malaysian prayer time data from [Waktu Solat API](https://api.waktusolat.app)
+- Islamic community feedback and testing
+- Home Assistant community support
 
 ---
 
-**Disclaimer**: This integration is not affiliated with JAKIM or any official Malaysian Islamic authorities. Prayer times are provided for convenience and should be verified with local mosque or official sources for religious obligations. 
+**🕌 May this integration help you maintain your daily prayers. Barakallahu feeki.** 

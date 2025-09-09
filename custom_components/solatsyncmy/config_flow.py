@@ -14,11 +14,11 @@ from .const import (
     DEFAULT_ZONE,
     CONF_ZONE,
     CONF_AZAN_ENABLED,
-    CONF_AZAN_FAJR_ENABLED,
-    CONF_AZAN_DHUHR_ENABLED,
-    CONF_AZAN_ASR_ENABLED,
+    CONF_AZAN_SUBUH_ENABLED,
+    CONF_AZAN_ZOHOR_ENABLED,
+    CONF_AZAN_ASAR_ENABLED,
     CONF_AZAN_MAGHRIB_ENABLED,
-    CONF_AZAN_ISHA_ENABLED,
+    CONF_AZAN_ISYAK_ENABLED,
     CONF_MEDIA_PLAYER,
     CONF_AZAN_VOLUME,
 )
@@ -105,13 +105,37 @@ class WaktuSolatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Validate the zone
             zone = user_input[CONF_ZONE]
             if any(z[0] == zone for z in ZONES):
-                # Create entry
-                return self.async_create_entry(
-                    title=f"Solat Sync MY ({zone})",
-                    data=user_input,
-                )
+                # Validate media player if provided
+                media_player = user_input.get(CONF_MEDIA_PLAYER)
+                if media_player and not self.hass.states.get(media_player):
+                    errors[CONF_MEDIA_PLAYER] = "media_player_not_found"
+                else:
+                    # Create entry with both zone and media player
+                    return self.async_create_entry(
+                        title=f"Solat Sync MY ({zone})",
+                        data={CONF_ZONE: zone},
+                        options={
+                            CONF_MEDIA_PLAYER: media_player or "",
+                            CONF_AZAN_ENABLED: bool(media_player),  # Enable if media player selected
+                            CONF_AZAN_VOLUME: 0.7,
+                            CONF_AZAN_SUBUH_ENABLED: True,
+                            CONF_AZAN_ZOHOR_ENABLED: True,
+                            CONF_AZAN_ASAR_ENABLED: True,
+                            CONF_AZAN_MAGHRIB_ENABLED: True,
+                            CONF_AZAN_ISYAK_ENABLED: True,
+                        }
+                    )
             else:
                 errors[CONF_ZONE] = "invalid_zone"
+
+        # Get available media players
+        media_players = []
+        for state in self.hass.states.async_all():
+            if state.entity_id.startswith("media_player."):
+                media_players.append({
+                    "value": state.entity_id,
+                    "label": f"{state.attributes.get('friendly_name', state.entity_id)}"
+                })
 
         # Show form
         data_schema = vol.Schema({
@@ -121,12 +145,22 @@ class WaktuSolatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             ),
+            vol.Optional(CONF_MEDIA_PLAYER): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=media_players,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ) if media_players else str,
         })
 
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
             errors=errors,
+            description_placeholders={
+                "zone_info": "Select your Malaysian prayer time zone",
+                "media_player_info": "Optional: Select a media player for automated azan playback"
+            }
         )
 
     @staticmethod
@@ -203,24 +237,24 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
                 )
             ),
             vol.Optional(
-                CONF_AZAN_FAJR_ENABLED,
-                default=current_options.get(CONF_AZAN_FAJR_ENABLED, True),
+                CONF_AZAN_SUBUH_ENABLED,
+                default=current_options.get(CONF_AZAN_SUBUH_ENABLED, True),
             ): bool,
             vol.Optional(
-                CONF_AZAN_DHUHR_ENABLED,
-                default=current_options.get(CONF_AZAN_DHUHR_ENABLED, True),
+                CONF_AZAN_ZOHOR_ENABLED,
+                default=current_options.get(CONF_AZAN_ZOHOR_ENABLED, True),
             ): bool,
             vol.Optional(
-                CONF_AZAN_ASR_ENABLED,
-                default=current_options.get(CONF_AZAN_ASR_ENABLED, True),
+                CONF_AZAN_ASAR_ENABLED,
+                default=current_options.get(CONF_AZAN_ASAR_ENABLED, True),
             ): bool,
             vol.Optional(
                 CONF_AZAN_MAGHRIB_ENABLED,
                 default=current_options.get(CONF_AZAN_MAGHRIB_ENABLED, True),
             ): bool,
             vol.Optional(
-                CONF_AZAN_ISHA_ENABLED,
-                default=current_options.get(CONF_AZAN_ISHA_ENABLED, True),
+                CONF_AZAN_ISYAK_ENABLED,
+                default=current_options.get(CONF_AZAN_ISYAK_ENABLED, True),
             ): bool,
         })
 

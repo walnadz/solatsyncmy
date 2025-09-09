@@ -3,39 +3,80 @@
     "step": {
       "user": {
         "title": "Solat Sync MY Setup",
-        "description": "Configure your Malaysian prayer times integration",
+        "description": "Configure your Malaysian prayer times",
         "data": {
-          "zone": "Malaysian Zone"
+          "zone": "Malaysian Zone",
+          "media_player": "Media Player (Optional)"
+        },
+        "data_description": {
+          "zone": "Select your Malaysian prayer time zone",
+          "media_player": "Select a media player for automated azan playback (optional)"
         }
       }
     },
     "error": {
-      "invalid_zone": "Invalid zone selected"
-    },
-    "abort": {
-      "already_configured": "Integration is already configured"
+      "invalid_zone": "Invalid zone selected",
+      "media_player_not_found": "Media player not found"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Solat Sync MY Options",
-        "description": "Configure azan automation and media player settings",
+        "title": "Azan Automation Settings",
+        "description": "Configure automated azan playback",
         "data": {
           "azan_enabled": "Enable Azan Automation",
           "media_player": "Media Player",
           "azan_volume": "Azan Volume",
-          "azan_fajr_enabled": "Enable Fajr Azan",
-          "azan_dhuhr_enabled": "Enable Dhuhr Azan",
-          "azan_asr_enabled": "Enable Asr Azan",
-          "azan_maghrib_enabled": "Enable Maghrib Azan",
-          "azan_isha_enabled": "Enable Isha Azan"
+          "azan_subuh_enabled": "Azan Subuh",
+          "azan_zohor_enabled": "Azan Zohor", 
+          "azan_asar_enabled": "Azan Asar",
+          "azan_maghrib_enabled": "Azan Maghrib",
+          "azan_isyak_enabled": "Azan Isyak"
         }
       }
     },
     "error": {
       "media_player_required": "Media player is required when azan automation is enabled",
-      "media_player_not_found": "Selected media player was not found"
+      "media_player_not_found": "Selected media player not found"
+    }
+  },
+  "services": {
+    "play_azan": {
+      "name": "Play Azan",
+      "description": "Play azan for a specific prayer time",
+      "fields": {
+        "prayer": {
+          "name": "Prayer",
+          "description": "Which prayer's azan to play"
+        },
+        "media_player": {
+          "name": "Media Player",
+          "description": "Media player entity to use"
+        },
+        "volume": {
+          "name": "Volume",
+          "description": "Volume level (0.1-1.0)"
+        }
+      }
+    },
+    "test_audio": {
+      "name": "Test Audio",
+      "description": "Test audio playback with diagnostics",
+      "fields": {
+        "media_player": {
+          "name": "Media Player", 
+          "description": "Media player entity to test"
+        },
+        "audio_file": {
+          "name": "Audio File",
+          "description": "Audio file to test (azan.mp3 or azanfajr.mp3)"
+        },
+        "volume": {
+          "name": "Volume",
+          "description": "Test volume level (0.1-1.0)"
+        }
+      }
     }
   }
 } 

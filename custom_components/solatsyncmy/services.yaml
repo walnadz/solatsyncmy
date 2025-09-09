@@ -14,69 +14,75 @@ refresh_prayer_times:
 
 play_azan:
   name: Play Azan
-  description: Play the azan (call to prayer) audio on a specified media player
+  description: Play azan for a specific prayer time
   fields:
     prayer:
       name: Prayer
-      description: The prayer time (fajr, dhuhr, asr, maghrib, isha)
+      description: Which prayer's azan to play
       required: true
-      example: "maghrib"
       selector:
         select:
           options:
-            - fajr
-            - dhuhr
-            - asr
-            - maghrib
-            - isha
+            - value: "fajr"
+              label: "Subuh"
+            - value: "dhuhr" 
+              label: "Zohor"
+            - value: "asr"
+              label: "Asar"
+            - value: "maghrib"
+              label: "Maghrib"
+            - value: "isha"
+              label: "Isyak"
     media_player:
       name: Media Player
-      description: The entity ID of the media player to use
+      description: Media player entity to use for playback
       required: true
-      example: "media_player.living_room_speaker"
       selector:
         entity:
           domain: media_player
     volume:
       name: Volume
-      description: The volume level (0.0 to 1.0)
+      description: Volume level for playback (0.1-1.0)
       required: false
-      default: 0.5
-      example: 0.7
+      default: 0.7
       selector:
         number:
-          min: 0.0
+          min: 0.1
           max: 1.0
           step: 0.1
+          mode: slider
 
 test_audio:
   name: Test Audio Playback
-  description: Test audio playback on a media player with detailed debugging
+  description: Test audio playback with detailed diagnostics and troubleshooting
   fields:
     media_player:
       name: Media Player
-      description: The entity ID of the media player to test
+      description: Media player entity to test
       required: true
-      example: "media_player.living_room_speaker"
       selector:
         entity:
           domain: media_player
     audio_file:
       name: Audio File
-      description: The audio file to test (default azan.mp3)
+      description: Audio file to test
       required: false
       default: "azan.mp3"
-      example: "azan.mp3"
       selector:
-        text:
+        select:
+          options:
+            - value: "azan.mp3"
+              label: "Normal Azan (Zohor, Asar, Maghrib, Isyak)"
+            - value: "azanfajr.mp3"
+              label: "Subuh Azan"
     volume:
       name: Volume
-      description: The volume level (0.0 to 1.0)
+      description: Test volume level (0.1-1.0)
       required: false
       default: 0.5
-      example: 0.7
       selector:
         number:
-          min: 0.0
+          min: 0.1
           max: 1.0
-          step: 0.1 
+          step: 0.1
+          mode: slider 
