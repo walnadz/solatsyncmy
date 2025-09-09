@@ -6,6 +6,7 @@ refresh_prayer_times:
       name: Entity ID
       description: The entity ID of the prayer time sensor to refresh
       required: false
+      example: "sensor.waktu_solat_malaysia"
       selector:
         entity:
           domain: sensor
@@ -19,6 +20,7 @@ play_azan:
       name: Prayer
       description: The prayer time (fajr, dhuhr, asr, maghrib, isha)
       required: true
+      example: "maghrib"
       selector:
         select:
           options:
@@ -31,6 +33,7 @@ play_azan:
       name: Media Player
       description: The entity ID of the media player to use
       required: true
+      example: "media_player.living_room_speaker"
       selector:
         entity:
           domain: media_player
@@ -39,6 +42,7 @@ play_azan:
       description: The volume level (0.0 to 1.0)
       required: false
       default: 0.5
+      example: 0.7
       selector:
         number:
           min: 0.0
@@ -53,14 +57,16 @@ test_audio:
       name: Media Player
       description: The entity ID of the media player to test
       required: true
+      example: "media_player.living_room_speaker"
       selector:
         entity:
           domain: media_player
     audio_file:
       name: Audio File
-      description: The audio file to test (default: azan.mp3)
+      description: The audio file to test (default azan.mp3)
       required: false
       default: "azan.mp3"
+      example: "azan.mp3"
       selector:
         text:
     volume:
@@ -68,6 +74,7 @@ test_audio:
       description: The volume level (0.0 to 1.0)
       required: false
       default: 0.5
+      example: 0.7
       selector:
         number:
           min: 0.0

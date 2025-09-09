@@ -26,12 +26,7 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
-# Service schema for play_azan
-PLAY_AZAN_SERVICE_SCHEMA = vol.Schema({
-    vol.Required("prayer"): vol.In(["fajr", "dhuhr", "asr", "maghrib", "isha"]),
-    vol.Optional("media_player"): str,
-    vol.Optional("volume", default=0.7): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=1.0)),
-})
+# Services are defined in services.yaml for UI integration
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -430,40 +425,27 @@ async def _register_services(hass: HomeAssistant) -> None:
         
         _LOGGER.error("All test attempts failed for %s", media_player)
     
-    # Define service schemas
-    REFRESH_PRAYER_TIMES_SCHEMA = vol.Schema({
-        vol.Optional("entity_id"): str,
-    })
-    
-    TEST_AUDIO_SCHEMA = vol.Schema({
-        vol.Required("media_player"): str,
-        vol.Optional("audio_file", default="azan.mp3"): str,
-        vol.Optional("volume", default=0.5): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
-    })
-    
-    # Register services with schemas (only if not already registered)
+    # Register services without schemas to let services.yaml handle the UI
+    # This allows Home Assistant to load the service definitions from services.yaml
     if not hass.services.has_service(DOMAIN, "refresh_prayer_times"):
         hass.services.async_register(
             DOMAIN, 
             "refresh_prayer_times", 
-            handle_refresh_prayer_times, 
-            schema=REFRESH_PRAYER_TIMES_SCHEMA
+            handle_refresh_prayer_times
         )
     
     if not hass.services.has_service(DOMAIN, "play_azan"):
         hass.services.async_register(
             DOMAIN, 
             "play_azan", 
-            handle_play_azan, 
-            schema=PLAY_AZAN_SERVICE_SCHEMA
+            handle_play_azan
         )
     
     if not hass.services.has_service(DOMAIN, "test_audio"):
         hass.services.async_register(
             DOMAIN, 
             "test_audio", 
-            handle_test_audio, 
-            schema=TEST_AUDIO_SCHEMA
+            handle_test_audio
         )
     
     _LOGGER.info("Registered services: refresh_prayer_times, play_azan, test_audio") 
