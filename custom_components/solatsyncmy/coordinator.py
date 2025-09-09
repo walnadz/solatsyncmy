@@ -67,37 +67,56 @@ class WaktuSolatCoordinator(DataUpdateCoordinator):
 
     async def _fetch_prayer_times_for_date(self, target_date: date) -> Dict[str, Any]:
         """Fetch prayer times for a specific date."""
-        date_str = target_date.strftime("%Y-%m-%d")
-        url = f"{API_BASE_URL}/v2/solat/{self.zone}?date={date_str}"
+        year = target_date.year
+        month = target_date.month
+        day = target_date.day
         
-        _LOGGER.debug("Fetching prayer times from: %s", url)
+        # API v2 returns monthly data, not daily
+        url = f"{API_BASE_URL}/v2/solat/{self.zone}"
+        params = {"year": year, "month": month}
+        
+        _LOGGER.debug("Fetching prayer times from: %s with params: %s", url, params)
         
         async with async_timeout.timeout(API_TIMEOUT):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
+                async with session.get(url, params=params) as response:
                     if response.status != 200:
                         raise UpdateFailed(f"API request failed with status {response.status}")
                     
                     json_data = await response.json()
                     
-                    if json_data.get("status") != "success":
-                        raise UpdateFailed(f"API returned error: {json_data}")
+                    # Check if we have the expected structure
+                    if "zone" not in json_data or "prayers" not in json_data:
+                        raise UpdateFailed(f"API returned unexpected structure: {json_data}")
                     
-                    # Parse the response
-                    data = json_data.get("data", {})
+                    # Find today's prayer times from the monthly data
+                    prayers_data = json_data.get("prayers", [])
+                    target_day_data = None
                     
-                    # Extract prayer times
+                    for prayer_day in prayers_data:
+                        if prayer_day.get("day") == day:
+                            target_day_data = prayer_day
+                            break
+                    
+                    if not target_day_data:
+                        raise UpdateFailed(f"No prayer data found for day {day}")
+                    
+                    # Extract prayer times from Unix timestamps
                     prayer_times = {}
                     for prayer in PRAYER_TIMES:
-                        if prayer in data:
+                        if prayer in target_day_data:
                             try:
-                                # Parse time string to datetime object
-                                time_str = data[prayer]
-                                time_obj = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-                                # Convert to the local timezone
-                                prayer_times[prayer] = dt_util.as_local(time_obj)
-                            except (ValueError, TypeError) as err:
-                                _LOGGER.warning("Failed to parse %s time '%s': %s", prayer, data.get(prayer), err)
+                                # Convert Unix timestamp to datetime object
+                                timestamp = target_day_data[prayer]
+                                if isinstance(timestamp, (int, float)):
+                                    time_obj = datetime.fromtimestamp(timestamp)
+                                    # Convert to the local timezone
+                                    prayer_times[prayer] = dt_util.as_local(time_obj)
+                                else:
+                                    _LOGGER.warning("Invalid timestamp for %s: %s", prayer, timestamp)
+                                    continue
+                            except (ValueError, TypeError, OSError) as err:
+                                _LOGGER.warning("Failed to parse %s time '%s': %s", prayer, target_day_data.get(prayer), err)
                                 continue
                     
                     # Format times for display
@@ -109,13 +128,13 @@ class WaktuSolatCoordinator(DataUpdateCoordinator):
                     result = {
                         "prayer_times": prayer_times,
                         "prayer_times_formatted": prayer_times_formatted,
-                        "zone": self.zone,
-                        "date": date_str,
-                        "hijri_date": data.get("hijri_date"),
-                        "location": data.get("location", {}).get("name", self.zone),
+                        "zone": json_data.get("zone", self.zone),
+                        "date": target_date.strftime("%Y-%m-%d"),
+                        "hijri_date": target_day_data.get("hijri"),
+                        "location": self.zone,  # API doesn't provide location name
                     }
                     
-                    _LOGGER.debug("Successfully parsed prayer times for %s: %s", date_str, prayer_times_formatted)
+                    _LOGGER.debug("Successfully parsed prayer times for %s: %s", target_date, prayer_times_formatted)
                     return result
 
     def _calculate_next_prayer(self, data: Dict[str, Any]) -> Dict[str, Any]:
