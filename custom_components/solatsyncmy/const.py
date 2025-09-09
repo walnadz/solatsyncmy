@@ -2,7 +2,7 @@
 from homeassistant.const import Platform
 
 # Integration domain
-DOMAIN = "waktu_solat_malaysia"
+DOMAIN = "solatsyncmy"
 
 # Platforms
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH]
