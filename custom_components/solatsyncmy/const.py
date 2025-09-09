@@ -34,7 +34,7 @@ AZAN_PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]  # Syuruk doesn't hav
 # Device info
 MANUFACTURER = "Waktu Solat Malaysia"
 MODEL = "Prayer Times API"
-SW_VERSION = "1.0.2"
+SW_VERSION = "1.0.3"
 
 # Icons
 ICON_MOSQUE = "mdi:mosque"

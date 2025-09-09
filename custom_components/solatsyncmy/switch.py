@@ -126,6 +126,9 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
         
         # Update the entity state immediately
         self.async_write_ha_state()
+        
+        # Update all prayer switches availability
+        await self._update_prayer_switches()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
@@ -141,6 +144,14 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
         
         # Update the entity state immediately
         self.async_write_ha_state()
+        
+        # Update all prayer switches availability
+        await self._update_prayer_switches()
+
+    async def _update_prayer_switches(self) -> None:
+        """Update all prayer switches to reflect availability changes."""
+        # Trigger a coordinator update to refresh all entities
+        await self.coordinator.async_request_refresh()
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to hass."""

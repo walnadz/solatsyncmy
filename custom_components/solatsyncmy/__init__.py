@@ -67,10 +67,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Register the service only if it's not already registered
     if not hass.services.has_service(DOMAIN, SERVICE_PLAY_AZAN):
+        import voluptuous as vol
+        from homeassistant.helpers import config_validation as cv
+        
+        play_azan_schema = vol.Schema({
+            vol.Required("prayer"): vol.In(AZAN_PRAYERS),
+            vol.Optional("media_player"): cv.entity_id,
+            vol.Optional("volume", default=0.7): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=1.0)),
+        })
+        
         hass.services.async_register(
             DOMAIN,
             SERVICE_PLAY_AZAN,
             async_play_azan_service,
+            schema=play_azan_schema,
         )
     
     # Forward the setup to the platforms
