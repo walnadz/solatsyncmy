@@ -167,51 +167,67 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
 
     _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
 
-    # Set volume first
-    try:
-        await hass.services.async_call(
-            "media_player",
-            "volume_set",
-            {
-                "entity_id": media_player,
-                "volume_level": volume,
-            },
-        )
-        _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
-    except Exception as e:
-        _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
+    # Set volume first (skip for Android TV and similar players that don't support it)
+    if volume is not None and not any(x in media_player.lower() for x in ['androidtv', 'unifi_tv', 'android_tv']):
+        try:
+            await hass.services.async_call(
+                "media_player",
+                "volume_set",
+                {
+                    "entity_id": media_player,
+                    "volume_level": volume,
+                },
+            )
+            _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
+        except Exception as e:
+            _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
+    else:
+        _LOGGER.info("Skipping volume control for %s (not supported)", media_player)
 
     # Try multiple path formats for different media players
     path_formats = [
         f"/local/solatsyncmy/{azan_file}",  # Standard Home Assistant www path
         f"media-source://media_source/local/solatsyncmy/{azan_file}",  # Media source format
         f"http://localhost:8123/local/solatsyncmy/{azan_file}",  # Direct HTTP path
+        f"http://192.168.0.114:8123/local/solatsyncmy/{azan_file}",  # Direct IP for some players
     ]
+    
+    # Different media types for different players
+    if 'unifi_tv' in media_player.lower() or 'androidtv' in media_player.lower():
+        # Android TV compatible formats - prioritize MPEG formats
+        media_types = ["audio/mpeg", "audio/mp3", "music", "audio", "video/mp4"]
+    else:
+        # Standard audio formats
+        media_types = ["audio/mp3", "audio/mpeg", "music", "audio"]
     
     success = False
     for i, file_url in enumerate(path_formats, 1):
-        try:
-            _LOGGER.info("Attempt %d: Playing %s azan using path: %s", i, prayer, file_url)
-            
-            await hass.services.async_call(
-                "media_player",
-                "play_media",
-                {
-                    "entity_id": media_player,
-                    "media_content_id": file_url,
-                    "media_content_type": "audio/mp3",
-                },
-            )
-            
-            _LOGGER.info("Successfully sent play command for %s azan on %s", prayer, media_player)
-            success = True
+        for j, media_type in enumerate(media_types, 1):
+            try:
+                _LOGGER.info("Attempt %d.%d: Playing %s azan using path: %s with type: %s", 
+                           i, j, prayer, file_url, media_type)
+                
+                await hass.services.async_call(
+                    "media_player",
+                    "play_media",
+                    {
+                        "entity_id": media_player,
+                        "media_content_id": file_url,
+                        "media_content_type": media_type,
+                    },
+                )
+                
+                _LOGGER.info("Successfully sent play command for %s azan on %s using %s", 
+                           prayer, media_player, media_type)
+                success = True
+                break
+                
+            except Exception as e:
+                _LOGGER.debug("Attempt %d.%d failed with %s: %s", i, j, media_type, e)
+                continue
+        
+        if success:
             break
-            
-        except Exception as e:
-            _LOGGER.warning("Attempt %d failed: %s", i, e)
-            if i < len(path_formats):
-                _LOGGER.info("Trying next path format...")
-            continue
     
     if not success:
         _LOGGER.error("All attempts to play azan failed. Check your media player configuration.")
