@@ -34,7 +34,7 @@ AZAN_PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]  # Syuruk doesn't hav
 # Device info
 MANUFACTURER = "Waktu Solat Malaysia"
 MODEL = "Prayer Times API"
-SW_VERSION = "1.0.0"
+SW_VERSION = "1.0.2"
 
 # Icons
 ICON_MOSQUE = "mdi:mosque"
@@ -54,8 +54,8 @@ PRAYER_ICONS = {
 }
 
 # Azan file paths (relative to integration directory)
-AZAN_FILE_NORMAL = "sounds/azan.mp3"
-AZAN_FILE_FAJR = "sounds/azanfajr.mp3"
+AZAN_FILE_NORMAL = "audio/azan.mp3"
+AZAN_FILE_FAJR = "audio/azanfajr.mp3"
 
 # Service names
 SERVICE_PLAY_AZAN = "play_azan"

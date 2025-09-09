@@ -123,6 +123,9 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
         
         # Start time tracking for azan
         await self._setup_azan_automation()
+        
+        # Update the entity state immediately
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
@@ -135,6 +138,9 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
         
         # Stop time tracking
         self._cleanup_time_listeners()
+        
+        # Update the entity state immediately
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to hass."""
@@ -250,13 +256,14 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
             },
         )
 
-        # Play azan
+        # Play azan using the local file path
+        file_url = f"/local/custom_components/{DOMAIN}/{azan_file}"
         await self.hass.services.async_call(
             "media_player",
             "play_media",
             {
                 "entity_id": media_player,
-                "media_content_id": f"media-source://media_source/local/{azan_file}",
+                "media_content_id": file_url,
                 "media_content_type": "audio/mp3",
             },
         )
@@ -302,6 +309,9 @@ class WaktuSolatAzanPrayerSwitch(WaktuSolatSwitchEntity):
         self.hass.config_entries.async_update_entry(
             self._config_entry, options=new_options
         )
+        
+        # Update the entity state immediately
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
@@ -310,4 +320,7 @@ class WaktuSolatAzanPrayerSwitch(WaktuSolatSwitchEntity):
         
         self.hass.config_entries.async_update_entry(
             self._config_entry, options=new_options
-        ) 
+        )
+        
+        # Update the entity state immediately
+        self.async_write_ha_state() 
