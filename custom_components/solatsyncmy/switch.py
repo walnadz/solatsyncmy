@@ -267,8 +267,8 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
             },
         )
 
-        # Play azan using the local file path
-        file_url = f"/local/custom_components/{DOMAIN}/{azan_file}"
+        # Play azan using the www folder path
+        file_url = f"/local/solatsyncmy/{azan_file}"
         await self.hass.services.async_call(
             "media_player",
             "play_media",

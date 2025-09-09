@@ -53,9 +53,9 @@ PRAYER_ICONS = {
     "isha": "mdi:moon-waning-crescent",
 }
 
-# Azan file paths (relative to integration directory)
-AZAN_FILE_NORMAL = "audio/azan.mp3"
-AZAN_FILE_FAJR = "audio/azanfajr.mp3"
+# Azan file names (files will be copied to www/solatsyncmy/)
+AZAN_FILE_NORMAL = "azan.mp3"
+AZAN_FILE_FAJR = "azanfajr.mp3"
 
 # Service names
 SERVICE_PLAY_AZAN = "play_azan"
