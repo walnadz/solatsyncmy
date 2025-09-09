@@ -167,8 +167,9 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
 
     _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
 
-    # Set volume first (skip for Android TV and similar players that don't support it)
-    if volume is not None and not any(x in media_player.lower() for x in ['androidtv', 'unifi_tv', 'android_tv']):
+    # Set volume first (skip for players that don't support it or handle it differently)
+    skip_volume_players = ['androidtv', 'unifi_tv', 'android_tv']
+    if volume is not None and not any(x in media_player.lower() for x in skip_volume_players):
         try:
             await hass.services.async_call(
                 "media_player",
@@ -182,12 +183,16 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
         except Exception as e:
             _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
     else:
-        _LOGGER.info("Skipping volume control for %s (not supported)", media_player)
+        _LOGGER.info("Skipping volume control for %s (not supported or handled differently)", media_player)
 
+    # Get Home Assistant base URL for external access
+    base_url = hass.config.external_url or hass.config.internal_url or "http://localhost:8123"
+    
     # Try multiple path formats for different media players
     path_formats = [
         f"/local/solatsyncmy/{azan_file}",  # Standard Home Assistant www path
         f"media-source://media_source/local/solatsyncmy/{azan_file}",  # Media source format
+        f"{base_url}/local/solatsyncmy/{azan_file}",  # Base URL path
         f"http://localhost:8123/local/solatsyncmy/{azan_file}",  # Direct HTTP path
         f"http://192.168.0.114:8123/local/solatsyncmy/{azan_file}",  # Direct IP for some players
     ]
@@ -196,8 +201,11 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
     if 'unifi_tv' in media_player.lower() or 'androidtv' in media_player.lower():
         # Android TV compatible formats - prioritize MPEG formats
         media_types = ["audio/mpeg", "audio/mp3", "music", "audio", "video/mp4"]
+    elif 'homepod' in media_player.lower() or 'apple' in media_player.lower():
+        # HomePod and Apple devices prefer specific formats
+        media_types = ["music", "audio/mp3", "audio/mpeg", "audio/aac", "audio"]
     else:
-        # Standard audio formats
+        # Standard audio formats for other players
         media_types = ["audio/mp3", "audio/mpeg", "music", "audio"]
     
     success = False
@@ -207,14 +215,22 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
                 _LOGGER.info("Attempt %d.%d: Playing %s azan using path: %s with type: %s", 
                            i, j, prayer, file_url, media_type)
                 
+                # Special handling for HomePods - try with announce parameter first
+                service_data = {
+                    "entity_id": media_player,
+                    "media_content_id": file_url,
+                    "media_content_type": media_type,
+                }
+                
+                # For HomePods, try with announce parameter for better compatibility
+                if 'homepod' in media_player.lower() or 'apple' in media_player.lower():
+                    service_data["announce"] = True
+                    _LOGGER.debug("Using announce=True for Apple/HomePod device")
+                
                 await hass.services.async_call(
                     "media_player",
                     "play_media",
-                    {
-                        "entity_id": media_player,
-                        "media_content_id": file_url,
-                        "media_content_type": media_type,
-                    },
+                    service_data,
                 )
                 
                 _LOGGER.info("Successfully sent play command for %s azan on %s using %s", 
@@ -224,6 +240,27 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
                 
             except Exception as e:
                 _LOGGER.debug("Attempt %d.%d failed with %s: %s", i, j, media_type, e)
+                
+                # If HomePod failed with announce=True, try without it
+                if ('homepod' in media_player.lower() or 'apple' in media_player.lower()) and 'announce' in str(e).lower():
+                    try:
+                        _LOGGER.debug("Retrying HomePod without announce parameter")
+                        await hass.services.async_call(
+                            "media_player",
+                            "play_media",
+                            {
+                                "entity_id": media_player,
+                                "media_content_id": file_url,
+                                "media_content_type": media_type,
+                            },
+                        )
+                        _LOGGER.info("Successfully sent play command for %s azan on %s using %s (without announce)", 
+                                   prayer, media_player, media_type)
+                        success = True
+                        break
+                    except Exception as e2:
+                        _LOGGER.debug("Retry without announce also failed: %s", e2)
+                        continue
                 continue
         
         if success:
