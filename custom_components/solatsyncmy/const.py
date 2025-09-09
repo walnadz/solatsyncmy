@@ -14,7 +14,7 @@ API_TIMEOUT = 30
 # Default values
 DEFAULT_ZONE = "SGR01"  # Selangor default
 DEFAULT_NAME = "Waktu Solat Malaysia"
-DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
+DEFAULT_SCAN_INTERVAL = 900  # 15 minutes in seconds (optimized for monthly caching)
 
 # Configuration keys
 CONF_ZONE = "zone"
