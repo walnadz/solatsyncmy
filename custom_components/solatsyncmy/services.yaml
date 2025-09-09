@@ -13,11 +13,11 @@ refresh_prayer_times:
 
 play_azan:
   name: Play Azan
-  description: Manually play azan for a specific prayer
+  description: Play the azan (call to prayer) audio on a specified media player
   fields:
     prayer:
       name: Prayer
-      description: Which prayer's azan to play
+      description: The prayer time (fajr, dhuhr, asr, maghrib, isha)
       required: true
       selector:
         select:
@@ -29,19 +29,47 @@ play_azan:
             - isha
     media_player:
       name: Media Player
-      description: Media player to use for azan playback
-      required: false
+      description: The entity ID of the media player to use
+      required: true
       selector:
         entity:
           domain: media_player
     volume:
       name: Volume
-      description: Volume level for azan playback (0.1 - 1.0)
+      description: The volume level (0.0 to 1.0)
       required: false
-      default: 0.7
+      default: 0.5
       selector:
         number:
-          min: 0.1
+          min: 0.0
           max: 1.0
           step: 0.1
-          mode: slider 
+
+test_audio:
+  name: Test Audio Playback
+  description: Test audio playback on a media player with detailed debugging
+  fields:
+    media_player:
+      name: Media Player
+      description: The entity ID of the media player to test
+      required: true
+      selector:
+        entity:
+          domain: media_player
+    audio_file:
+      name: Audio File
+      description: The audio file to test (default: azan.mp3)
+      required: false
+      default: "azan.mp3"
+      selector:
+        text:
+    volume:
+      name: Volume
+      description: The volume level (0.0 to 1.0)
+      required: false
+      default: 0.5
+      selector:
+        number:
+          min: 0.0
+          max: 1.0
+          step: 0.1 

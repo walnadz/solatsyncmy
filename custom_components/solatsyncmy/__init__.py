@@ -2,6 +2,7 @@
 import logging
 import os
 import shutil
+import asyncio
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
@@ -62,31 +63,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sw_version="1.0.3",
     )
 
-    # Register the play_azan service
-    async def handle_play_azan(call: ServiceCall) -> None:
-        """Handle the play_azan service call."""
-        prayer = call.data["prayer"]
-        media_player = call.data.get("media_player")
-        volume = call.data.get("volume", 0.7)
-        
-        # If no media player specified, try to get from config
-        if not media_player:
-            media_player = entry.options.get(CONF_MEDIA_PLAYER)
-            
-        if not media_player:
-            _LOGGER.error("No media player specified for play_azan service")
-            return
-            
-        await _play_azan_file(hass, prayer, media_player, volume)
-
-    hass.services.async_register(
-        DOMAIN,
-        "play_azan",
-        handle_play_azan,
-        schema=PLAY_AZAN_SERVICE_SCHEMA,
-    )
+    # Register services
+    await _register_services(hass)
 
     
+    return True
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the Solat Sync MY component."""
     return True
 
 
@@ -194,7 +179,9 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
         f"media-source://media_source/local/solatsyncmy/{azan_file}",  # Media source format
         f"{base_url}/local/solatsyncmy/{azan_file}",  # Base URL path
         f"http://localhost:8123/local/solatsyncmy/{azan_file}",  # Direct HTTP path
-        f"http://192.168.0.114:8123/local/solatsyncmy/{azan_file}",  # Direct IP for some players
+        f"/media/local/solatsyncmy/{azan_file}",  # Alternative media path
+        f"media-source://media_source/local/{azan_file}",  # Direct media source
+        f"/local/{azan_file}",  # Direct local path (if files are in root www)
     ]
     
     # Different media types for different players
@@ -303,3 +290,109 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry) 
+
+async def _register_services(hass: HomeAssistant) -> None:
+    """Register services for the integration."""
+    
+    async def handle_play_azan(call):
+        """Handle the play_azan service call."""
+        prayer = call.data.get("prayer")
+        media_player = call.data.get("media_player")
+        volume = call.data.get("volume", 0.5)
+        
+        _LOGGER.info("Service call: play_azan for %s on %s", prayer, media_player)
+        
+        await _play_azan_file(hass, prayer, media_player, volume)
+    
+    async def handle_test_audio(call):
+        """Handle the test_audio service call for debugging."""
+        media_player = call.data.get("media_player")
+        audio_file = call.data.get("audio_file", "azan.mp3")
+        volume = call.data.get("volume", 0.5)
+        
+        _LOGGER.info("Service call: test_audio for %s on %s", audio_file, media_player)
+        
+        # Check if media player exists
+        if not hass.states.get(media_player):
+            _LOGGER.error("Media player %s not found", media_player)
+            return
+
+        # Get media player state for debugging
+        state = hass.states.get(media_player)
+        _LOGGER.info("Media player %s state: %s", media_player, state.state)
+        _LOGGER.info("Media player attributes: %s", state.attributes)
+
+        # Verify the audio file exists
+        www_path = os.path.join(hass.config.path("www"), "solatsyncmy", audio_file)
+        if not os.path.exists(www_path):
+            _LOGGER.error("Audio file not found: %s", www_path)
+            return
+
+        _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
+
+        # Set volume first
+        if volume is not None:
+            try:
+                await hass.services.async_call(
+                    "media_player",
+                    "volume_set",
+                    {
+                        "entity_id": media_player,
+                        "volume_level": volume,
+                    },
+                )
+                _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
+            except Exception as e:
+                _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
+
+        # Get base URL
+        base_url = hass.config.external_url or hass.config.internal_url or "http://localhost:8123"
+        
+        # Test different path formats one by one with detailed logging
+        test_paths = [
+            f"/local/solatsyncmy/{audio_file}",
+            f"media-source://media_source/local/solatsyncmy/{audio_file}",
+            f"{base_url}/local/solatsyncmy/{audio_file}",
+            f"http://localhost:8123/local/solatsyncmy/{audio_file}",
+        ]
+        
+        # Test different media types
+        test_types = ["audio/mp3", "audio/mpeg", "music", "audio"]
+        
+        for i, file_url in enumerate(test_paths, 1):
+            for j, media_type in enumerate(test_types, 1):
+                try:
+                    _LOGGER.info("Test %d.%d: Trying path=%s, type=%s", i, j, file_url, media_type)
+                    
+                    await hass.services.async_call(
+                        "media_player",
+                        "play_media",
+                        {
+                            "entity_id": media_player,
+                            "media_content_id": file_url,
+                            "media_content_type": media_type,
+                        },
+                    )
+                    
+                    _LOGGER.info("Test %d.%d: SUCCESS - Media sent to %s", i, j, media_player)
+                    
+                    # Wait a bit to see if it starts playing
+                    await asyncio.sleep(2)
+                    
+                    # Check player state after command
+                    new_state = hass.states.get(media_player)
+                    _LOGGER.info("Player state after command: %s", new_state.state if new_state else "unknown")
+                    
+                    return  # Stop after first success
+                    
+                except Exception as e:
+                    _LOGGER.warning("Test %d.%d: FAILED - %s", i, j, str(e))
+                    continue
+        
+        _LOGGER.error("All test attempts failed for %s", media_player)
+    
+    # Register services
+    hass.services.async_register(DOMAIN, "play_azan", handle_play_azan)
+    hass.services.async_register(DOMAIN, "test_audio", handle_test_audio)
+    
+    _LOGGER.info("Registered services: play_azan, test_audio") 
