@@ -143,7 +143,7 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        super().__init__()
 
     async def async_step_init(
         self, user_input: Optional[Dict[str, Any]] = None
@@ -170,11 +170,11 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
         
         # Get available media players
         media_players = []
-        for entity_id, state in self.hass.states.async_all():
-            if entity_id.startswith("media_player."):
+        for state in self.hass.states.async_all():
+            if state.entity_id.startswith("media_player."):
                 media_players.append({
-                    "value": entity_id,
-                    "label": f"{state.attributes.get('friendly_name', entity_id)} ({entity_id})"
+                    "value": state.entity_id,
+                    "label": f"{state.attributes.get('friendly_name', state.entity_id)} ({state.entity_id})"
                 })
 
         data_schema = vol.Schema({

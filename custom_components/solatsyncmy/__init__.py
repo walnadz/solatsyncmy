@@ -39,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _setup_audio_files(hass)
     
     # Create coordinator
-    coordinator = WaktuSolatCoordinator(hass, entry.data["zone"])
+    coordinator = WaktuSolatCoordinator(hass, entry)
     
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
@@ -91,29 +91,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _setup_audio_files(hass: HomeAssistant) -> None:
-    """Copy audio files to www folder for media player access."""
-    # Create www/solatsyncmy directory
-    www_dir = hass.config.path("www")
-    solat_www_dir = os.path.join(www_dir, "solatsyncmy")
+    """Setup audio files in www folder."""
+    # Create www/solatsyncmy directory if it doesn't exist
+    solat_www_dir = os.path.join(hass.config.path("www"), "solatsyncmy")
     
-    # Create directory if it doesn't exist
-    os.makedirs(solat_www_dir, exist_ok=True)
-    
-    # Get source audio directory
-    integration_dir = os.path.dirname(__file__)
-    audio_dir = os.path.join(integration_dir, "audio")
-    
-    # Copy audio files
-    for audio_file in [AZAN_FILE_FAJR, AZAN_FILE_NORMAL]:
-        source_path = os.path.join(audio_dir, audio_file)
-        dest_path = os.path.join(solat_www_dir, audio_file)
+    def setup_files():
+        os.makedirs(solat_www_dir, exist_ok=True)
         
-        if os.path.exists(source_path):
-            if not os.path.exists(dest_path):
-                shutil.copy2(source_path, dest_path)
-                _LOGGER.info("Copied %s to www folder", audio_file)
-        else:
-            _LOGGER.error("Audio file not found: %s", source_path)
+        # Get source audio directory
+        integration_dir = os.path.dirname(__file__)
+        audio_dir = os.path.join(integration_dir, "audio")
+        
+        # Copy audio files
+        for audio_file in [AZAN_FILE_FAJR, AZAN_FILE_NORMAL]:
+            source_path = os.path.join(audio_dir, audio_file)
+            dest_path = os.path.join(solat_www_dir, audio_file)
+            
+            if os.path.exists(source_path):
+                if not os.path.exists(dest_path):
+                    shutil.copy2(source_path, dest_path)
+                    _LOGGER.info("Copied %s to www folder", audio_file)
+            else:
+                _LOGGER.error("Audio file not found: %s", source_path)
+    
+    await hass.async_add_executor_job(setup_files)
 
 
 async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, volume: float) -> None:
