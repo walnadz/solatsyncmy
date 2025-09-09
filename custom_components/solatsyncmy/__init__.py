@@ -96,23 +96,49 @@ async def _setup_audio_files(hass: HomeAssistant) -> None:
     solat_www_dir = os.path.join(hass.config.path("www"), "solatsyncmy")
     
     def setup_files():
-        os.makedirs(solat_www_dir, exist_ok=True)
-        
-        # Get source audio directory
-        integration_dir = os.path.dirname(__file__)
-        audio_dir = os.path.join(integration_dir, "audio")
-        
-        # Copy audio files
-        for audio_file in [AZAN_FILE_FAJR, AZAN_FILE_NORMAL]:
-            source_path = os.path.join(audio_dir, audio_file)
-            dest_path = os.path.join(solat_www_dir, audio_file)
+        try:
+            os.makedirs(solat_www_dir, exist_ok=True)
+            _LOGGER.info("Created/verified www directory: %s", solat_www_dir)
             
-            if os.path.exists(source_path):
-                if not os.path.exists(dest_path):
-                    shutil.copy2(source_path, dest_path)
-                    _LOGGER.info("Copied %s to www folder", audio_file)
-            else:
-                _LOGGER.error("Audio file not found: %s", source_path)
+            # Get source audio directory
+            integration_dir = os.path.dirname(__file__)
+            audio_dir = os.path.join(integration_dir, "audio")
+            
+            _LOGGER.info("Looking for audio files in: %s", audio_dir)
+            
+            # Copy audio files
+            for audio_file in [AZAN_FILE_FAJR, AZAN_FILE_NORMAL]:
+                source_path = os.path.join(audio_dir, audio_file)
+                dest_path = os.path.join(solat_www_dir, audio_file)
+                
+                _LOGGER.info("Processing audio file: %s", audio_file)
+                _LOGGER.info("Source path: %s", source_path)
+                _LOGGER.info("Destination path: %s", dest_path)
+                
+                if os.path.exists(source_path):
+                    source_size = os.path.getsize(source_path)
+                    _LOGGER.info("Source file exists, size: %d bytes", source_size)
+                    
+                    if not os.path.exists(dest_path):
+                        shutil.copy2(source_path, dest_path)
+                        dest_size = os.path.getsize(dest_path)
+                        _LOGGER.info("Copied %s to www folder (size: %d bytes)", audio_file, dest_size)
+                    else:
+                        dest_size = os.path.getsize(dest_path)
+                        _LOGGER.info("Audio file already exists in www folder (size: %d bytes)", dest_size)
+                        
+                        # Verify file integrity by comparing sizes
+                        if source_size != dest_size:
+                            _LOGGER.warning("File size mismatch, re-copying %s", audio_file)
+                            shutil.copy2(source_path, dest_path)
+                            new_size = os.path.getsize(dest_path)
+                            _LOGGER.info("Re-copied %s (new size: %d bytes)", audio_file, new_size)
+                else:
+                    _LOGGER.error("Audio file not found: %s", source_path)
+                    
+        except Exception as e:
+            _LOGGER.error("Error setting up audio files: %s", e)
+            raise
     
     await hass.async_add_executor_job(setup_files)
 
@@ -127,29 +153,76 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
         _LOGGER.error("Media player %s not found", media_player)
         return
 
-    # Set volume
-    await hass.services.async_call(
-        "media_player",
-        "volume_set",
-        {
-            "entity_id": media_player,
-            "volume_level": volume,
-        },
-    )
+    # Verify the audio file exists in www folder
+    www_path = os.path.join(hass.config.path("www"), "solatsyncmy", azan_file)
+    if not os.path.exists(www_path):
+        _LOGGER.error("Audio file not found in www folder: %s", www_path)
+        _LOGGER.info("Attempting to copy audio files again...")
+        await _setup_audio_files(hass)
+        
+        # Check again after setup
+        if not os.path.exists(www_path):
+            _LOGGER.error("Failed to setup audio file: %s", www_path)
+            return
 
-    # Play azan using the www folder path
-    file_url = f"/local/solatsyncmy/{azan_file}"
-    await hass.services.async_call(
-        "media_player",
-        "play_media",
-        {
-            "entity_id": media_player,
-            "media_content_id": file_url,
-            "media_content_type": "audio/mp3",
-        },
-    )
+    _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
+
+    # Set volume first
+    try:
+        await hass.services.async_call(
+            "media_player",
+            "volume_set",
+            {
+                "entity_id": media_player,
+                "volume_level": volume,
+            },
+        )
+        _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
+    except Exception as e:
+        _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
+
+    # Try multiple path formats for different media players
+    path_formats = [
+        f"/local/solatsyncmy/{azan_file}",  # Standard Home Assistant www path
+        f"media-source://media_source/local/solatsyncmy/{azan_file}",  # Media source format
+        f"http://localhost:8123/local/solatsyncmy/{azan_file}",  # Direct HTTP path
+    ]
     
-    _LOGGER.info("Playing %s azan on %s", prayer, media_player)
+    success = False
+    for i, file_url in enumerate(path_formats, 1):
+        try:
+            _LOGGER.info("Attempt %d: Playing %s azan using path: %s", i, prayer, file_url)
+            
+            await hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": media_player,
+                    "media_content_id": file_url,
+                    "media_content_type": "audio/mp3",
+                },
+            )
+            
+            _LOGGER.info("Successfully sent play command for %s azan on %s", prayer, media_player)
+            success = True
+            break
+            
+        except Exception as e:
+            _LOGGER.warning("Attempt %d failed: %s", i, e)
+            if i < len(path_formats):
+                _LOGGER.info("Trying next path format...")
+            continue
+    
+    if not success:
+        _LOGGER.error("All attempts to play azan failed. Check your media player configuration.")
+        
+        # Additional debugging info
+        state = hass.states.get(media_player)
+        if state:
+            _LOGGER.info("Media player %s state: %s", media_player, state.state)
+            _LOGGER.info("Media player attributes: %s", state.attributes)
+        else:
+            _LOGGER.error("Media player %s not found in states", media_player)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

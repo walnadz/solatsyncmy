@@ -267,19 +267,9 @@ class WaktuSolatAzanMainSwitch(WaktuSolatSwitchEntity):
             },
         )
 
-        # Play azan using the www folder path
-        file_url = f"/local/solatsyncmy/{azan_file}"
-        await self.hass.services.async_call(
-            "media_player",
-            "play_media",
-            {
-                "entity_id": media_player,
-                "media_content_id": file_url,
-                "media_content_type": "audio/mp3",
-            },
-        )
-        
-        _LOGGER.info("Playing %s azan on %s", prayer, media_player)
+        # Use the same improved play logic as the service
+        from . import _play_azan_file
+        await _play_azan_file(self.hass, prayer, media_player, volume)
 
 
 class WaktuSolatAzanPrayerSwitch(WaktuSolatSwitchEntity):
