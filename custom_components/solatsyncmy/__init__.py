@@ -55,7 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name="Solat Sync MY",
         manufacturer="Solat Sync MY",
         model="Prayer Times",
-        sw_version="1.0.3",
+        sw_version="1.0.10",
     )
 
     # Register services
@@ -124,7 +124,8 @@ async def _setup_audio_files(hass: HomeAssistant) -> None:
 
 
 async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, volume: float) -> None:
-    """Play azan file for the specified prayer."""
+    """Play azan file for the specified prayer with improved reliability."""
+    
     # Determine which azan file to use
     azan_file = AZAN_FILE_FAJR if prayer == "fajr" else AZAN_FILE_NORMAL
     
@@ -147,6 +148,25 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
 
     _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
 
+    # Get media player state for debugging
+    player_state = hass.states.get(media_player)
+    _LOGGER.info("Media player %s current state: %s", media_player, player_state.state)
+    _LOGGER.info("Media player attributes: %s", player_state.attributes)
+
+    # Turn on the media player if it's off
+    if player_state.state in ['off', 'standby']:
+        try:
+            _LOGGER.info("Turning on media player %s", media_player)
+            await hass.services.async_call(
+                "media_player",
+                "turn_on",
+                {"entity_id": media_player}
+            )
+            # Wait for it to turn on
+            await asyncio.sleep(3)
+        except Exception as e:
+            _LOGGER.warning("Failed to turn on media player %s: %s", media_player, e)
+
     # Set volume first (skip for players that don't support it or handle it differently)
     skip_volume_players = ['androidtv', 'unifi_tv', 'android_tv']
     if volume is not None and not any(x in media_player.lower() for x in skip_volume_players):
@@ -160,6 +180,7 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
                 },
             )
             _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
+            await asyncio.sleep(1)  # Give time for volume to be set
         except Exception as e:
             _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
     else:
@@ -217,8 +238,20 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
                 
                 _LOGGER.info("Successfully sent play command for %s azan on %s using %s", 
                            prayer, media_player, media_type)
-                success = True
-                break
+                
+                # Wait a bit and check if playback started
+                await asyncio.sleep(2)
+                new_state = hass.states.get(media_player)
+                if new_state:
+                    _LOGGER.info("Media player state after play command: %s", new_state.state)
+                    if new_state.state in ['playing', 'buffering']:
+                        _LOGGER.info("✅ Playback appears to have started successfully!")
+                        success = True
+                        break
+                    else:
+                        _LOGGER.warning("⚠️  Media player not in playing state, trying next format...")
+                else:
+                    _LOGGER.warning("⚠️  Could not get media player state after play command")
                 
             except Exception as e:
                 _LOGGER.debug("Attempt %d.%d failed with %s: %s", i, j, media_type, e)
@@ -249,13 +282,20 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
             break
     
     if not success:
-        _LOGGER.error("All attempts to play azan failed. Check your media player configuration.")
+        _LOGGER.error("❌ All attempts to play azan failed. Check your media player configuration.")
         
         # Additional debugging info
         state = hass.states.get(media_player)
         if state:
-            _LOGGER.info("Media player %s state: %s", media_player, state.state)
-            _LOGGER.info("Media player attributes: %s", state.attributes)
+            _LOGGER.info("Media player %s final state: %s", media_player, state.state)
+            _LOGGER.info("Media player final attributes: %s", state.attributes)
+            
+            # Suggest troubleshooting steps
+            _LOGGER.info("🔧 Troubleshooting suggestions:")
+            _LOGGER.info("1. Check if your media player supports the audio format")
+            _LOGGER.info("2. Try accessing the audio file directly: http://localhost:8123/local/solatsyncmy/%s", azan_file)
+            _LOGGER.info("3. Check Home Assistant logs for media player errors")
+            _LOGGER.info("4. Test with a different media player if available")
         else:
             _LOGGER.error("Media player %s not found in states", media_player)
 
@@ -288,81 +328,82 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry) 
 
+
 async def _register_services(hass: HomeAssistant) -> None:
     """Register services for the integration."""
     
-    async def handle_refresh_prayer_times(call):
+    async def handle_refresh_prayer_times(call: ServiceCall) -> None:
         """Handle the refresh_prayer_times service call."""
         entity_id = call.data.get("entity_id")
         
-        _LOGGER.info("Service call: refresh_prayer_times for entity %s", entity_id)
+        _LOGGER.info("Service call: refresh_prayer_times for %s", entity_id or "all entities")
         
-        # Find the coordinator(s) to refresh
-        coordinators_to_refresh = []
-        
-        if entity_id:
-            # Refresh specific entity's coordinator
-            for entry_id, coordinator in hass.data[DOMAIN].items():
-                # Check if this coordinator has the requested entity
-                if any(entity_id in str(entity) for entity in coordinator.data.get("sensors", [])):
-                    coordinators_to_refresh.append(coordinator)
-        else:
-            # Refresh all coordinators
-            coordinators_to_refresh = list(hass.data[DOMAIN].values())
-        
-        if not coordinators_to_refresh:
-            _LOGGER.warning("No coordinators found to refresh")
-            return
-            
-        # Refresh coordinators
-        for coordinator in coordinators_to_refresh:
-            try:
-                await coordinator.async_request_refresh()
-                _LOGGER.info("Successfully refreshed prayer times data")
-            except Exception as e:
-                _LOGGER.error("Failed to refresh prayer times: %s", e)
-    
+        # Find all coordinators and refresh them
+        if DOMAIN in hass.data:
+            for coordinator in hass.data[DOMAIN].values():
+                if hasattr(coordinator, 'async_request_refresh'):
+                    await coordinator.async_request_refresh()
+                    _LOGGER.info("Refreshed prayer times data")
+
     async def handle_play_azan(call):
         """Handle the play_azan service call."""
-        prayer = call.data.get("prayer")
+        prayer = call.data.get("prayer", "dhuhr")
         media_player = call.data.get("media_player")
         volume = call.data.get("volume", 0.5)
         
-        _LOGGER.info("Service call: play_azan for %s on %s", prayer, media_player)
+        _LOGGER.info("Service call: play_azan for %s prayer on %s", prayer, media_player)
+
         
         await _play_azan_file(hass, prayer, media_player, volume)
     
     async def handle_test_audio(call):
-        """Handle the test_audio service call for debugging."""
+        """Handle the test_audio service call for debugging with improved testing."""
         media_player = call.data.get("media_player")
         audio_file = call.data.get("audio_file", "azan.mp3")
         volume = call.data.get("volume", 0.5)
         
-        _LOGGER.info("Service call: test_audio for %s on %s", audio_file, media_player)
+        _LOGGER.info("🧪 Service call: test_audio for %s on %s", audio_file, media_player)
         
         # Check if media player exists
         if not hass.states.get(media_player):
-            _LOGGER.error("Media player %s not found", media_player)
+            _LOGGER.error("❌ Media player %s not found", media_player)
             return
 
         # Get media player state for debugging
         state = hass.states.get(media_player)
-        _LOGGER.info("Media player %s state: %s", media_player, state.state)
-        _LOGGER.info("Media player attributes: %s", state.attributes)
+        _LOGGER.info("📊 Media player %s state: %s", media_player, state.state)
+        _LOGGER.info("📊 Media player attributes: %s", state.attributes)
+
+        # Turn on the media player if it's off
+        if state.state in ['off', 'standby']:
+            try:
+                _LOGGER.info("🔌 Turning on media player %s", media_player)
+                await hass.services.async_call(
+                    "media_player",
+                    "turn_on",
+                    {"entity_id": media_player}
+                )
+                await asyncio.sleep(3)
+                
+                # Check state again
+                new_state = hass.states.get(media_player)
+                _LOGGER.info("📊 Media player state after turn_on: %s", new_state.state if new_state else "unknown")
+            except Exception as e:
+                _LOGGER.warning("⚠️  Failed to turn on media player %s: %s", media_player, e)
 
         # Verify the audio file exists
         www_path = os.path.join(hass.config.path("www"), "solatsyncmy", audio_file)
         if not os.path.exists(www_path):
-            _LOGGER.error("Audio file not found: %s", www_path)
-            _LOGGER.info("Attempting to setup audio files...")
+            _LOGGER.error("❌ Audio file not found: %s", www_path)
+            _LOGGER.info("🔄 Attempting to setup audio files...")
             await _setup_audio_files(hass)
             
             # Check again after setup
             if not os.path.exists(www_path):
-                _LOGGER.error("Failed to setup audio file: %s", www_path)
+                _LOGGER.error("❌ Failed to setup audio file: %s", www_path)
                 return
 
-        _LOGGER.info("Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
+        _LOGGER.info("✅ Found audio file: %s (size: %d bytes)", www_path, os.path.getsize(www_path))
 
         # Set volume first
         if volume is not None:
@@ -375,9 +416,10 @@ async def _register_services(hass: HomeAssistant) -> None:
                         "volume_level": volume,
                     },
                 )
-                _LOGGER.info("Set volume to %.1f on %s", volume, media_player)
+                _LOGGER.info("🔊 Set volume to %.1f on %s", volume, media_player)
+                await asyncio.sleep(1)
             except Exception as e:
-                _LOGGER.warning("Failed to set volume on %s: %s", media_player, e)
+                _LOGGER.warning("⚠️  Failed to set volume on %s: %s", media_player, e)
 
         # Get base URL
         base_url = hass.config.external_url or hass.config.internal_url or "http://localhost:8123"
@@ -393,10 +435,11 @@ async def _register_services(hass: HomeAssistant) -> None:
         # Test different media types
         test_types = ["audio/mp3", "audio/mpeg", "music", "audio"]
         
+        success = False
         for i, file_url in enumerate(test_paths, 1):
             for j, media_type in enumerate(test_types, 1):
                 try:
-                    _LOGGER.info("Test %d.%d: Trying path=%s, type=%s", i, j, file_url, media_type)
+                    _LOGGER.info("🧪 Test %d.%d: Trying path=%s, type=%s", i, j, file_url, media_type)
                     
                     await hass.services.async_call(
                         "media_player",
@@ -408,22 +451,38 @@ async def _register_services(hass: HomeAssistant) -> None:
                         },
                     )
                     
-                    _LOGGER.info("Test %d.%d: SUCCESS - Media sent to %s", i, j, media_player)
+                    _LOGGER.info("✅ Test %d.%d: SUCCESS - Media command sent to %s", i, j, media_player)
                     
                     # Wait a bit to see if it starts playing
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(3)
                     
                     # Check player state after command
                     new_state = hass.states.get(media_player)
-                    _LOGGER.info("Player state after command: %s", new_state.state if new_state else "unknown")
-                    
-                    return  # Stop after first success
+                    if new_state:
+                        _LOGGER.info("📊 Player state after command: %s", new_state.state)
+                        if new_state.state in ['playing', 'buffering']:
+                            _LOGGER.info("🎵 SUCCESS! Audio is playing on %s", media_player)
+                            success = True
+                            break
+                        else:
+                            _LOGGER.info("⚠️  Media sent but player not in playing state, trying next format...")
+                    else:
+                        _LOGGER.warning("⚠️  Could not get player state after command")
                     
                 except Exception as e:
-                    _LOGGER.warning("Test %d.%d: FAILED - %s", i, j, str(e))
+                    _LOGGER.warning("❌ Test %d.%d: FAILED - %s", i, j, str(e))
                     continue
+            
+            if success:
+                break
         
-        _LOGGER.error("All test attempts failed for %s", media_player)
+        if not success:
+            _LOGGER.error("❌ All test attempts failed for %s", media_player)
+            _LOGGER.info("🔧 Try these troubleshooting steps:")
+            _LOGGER.info("1. Check if the media player is compatible with MP3 files")
+            _LOGGER.info("2. Test with a different media player")
+            _LOGGER.info("3. Access the audio file directly: http://localhost:8123/local/solatsyncmy/%s", audio_file)
+            _LOGGER.info("4. Check the media player's own logs for errors")
     
     # Register services without schemas to let services.yaml handle the UI
     # This allows Home Assistant to load the service definitions from services.yaml
