@@ -22,23 +22,33 @@
   "options": {
     "step": {
       "init": {
-        "title": "Azan Automation Settings",
-        "description": "Configure automated azan playback",
+        "title": "Azan Automation Settings", 
+        "description": "Configure automated azan playback\n\n{audio_info}\n\n{media_player_info}",
         "data": {
           "azan_enabled": "Enable Azan Automation",
           "media_player": "Media Player",
+          "audio_source": "Audio Source",
+          "remote_azan_url": "Remote Azan URL",
+          "remote_fajr_url": "Remote Fajr URL",
           "azan_volume": "Azan Volume",
           "azan_subuh_enabled": "Azan Subuh",
           "azan_zohor_enabled": "Azan Zohor", 
           "azan_asar_enabled": "Azan Asar",
           "azan_maghrib_enabled": "Azan Maghrib",
           "azan_isyak_enabled": "Azan Isyak"
+        },
+        "data_description": {
+          "audio_source": "Choose how audio files are provided",
+          "remote_azan_url": "URL for normal prayer azan (required for remote source)",
+          "remote_fajr_url": "URL for Fajr azan (required for remote source)"
         }
       }
     },
     "error": {
       "media_player_required": "Media player is required when azan automation is enabled",
-      "media_player_not_found": "Selected media player not found"
+      "media_player_not_found": "Selected media player not found",
+      "remote_url_required": "Remote URL is required when using remote audio source",
+      "invalid_url_format": "URL must start with http:// or https://"
     }
   },
   "services": {

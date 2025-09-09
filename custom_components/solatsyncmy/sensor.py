@@ -80,9 +80,9 @@ class WaktuSolatPrayerTimeSensor(WaktuSolatEntity):
     """Sensor for individual prayer times."""
 
     def __init__(
-        self, 
-        coordinator: WaktuSolatCoordinator, 
-        config_entry: ConfigEntry, 
+        self,
+        coordinator: WaktuSolatCoordinator,
+        config_entry: ConfigEntry,
         prayer: str
     ) -> None:
         """Initialize the sensor."""
@@ -102,7 +102,7 @@ class WaktuSolatPrayerTimeSensor(WaktuSolatEntity):
         """Return the prayer time."""
         if not self.coordinator.data:
             return None
-            
+        
         prayer_times = self.coordinator.data.get("prayer_times", {})
         
         # Check if we need to show next day's prayer times
@@ -124,7 +124,7 @@ class WaktuSolatPrayerTimeSensor(WaktuSolatEntity):
         """Return extra state attributes."""
         if not self.coordinator.data:
             return {}
-            
+        
         attrs = {
             ATTR_ZONE: self.coordinator.data.get("zone"),
             "prayer_name": PRAYER_NAMES.get(self.prayer, self.prayer.title()),
@@ -135,7 +135,7 @@ class WaktuSolatPrayerTimeSensor(WaktuSolatEntity):
         hijri_date = self.coordinator.data.get("hijri_date")
         if hijri_date:
             attrs[ATTR_HIJRI_DATE] = hijri_date
-            
+        
         return attrs
 
 
@@ -187,7 +187,7 @@ class WaktuSolatNextPrayerSensor(WaktuSolatEntity):
         """Get the next prayer time."""
         if not self.coordinator.data:
             return None
-            
+        
         prayer_times = self.coordinator.data.get("prayer_times", {})
         next_prayer = self._get_next_prayer()
         
@@ -257,5 +257,5 @@ class WaktuSolatNextPrayerSensor(WaktuSolatEntity):
         hijri_date = self.coordinator.data.get("hijri_date")
         if hijri_date:
             attrs[ATTR_HIJRI_DATE] = hijri_date
-            
+        
         return attrs 

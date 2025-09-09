@@ -54,33 +54,37 @@ A comprehensive Home Assistant integration for Malaysian prayer times with autom
    - **Azan Isyak** (Isha)
 6. Click **Submit**
 
-## 🎵 Local Audio Files
+## 🎵 Audio Configuration
 
-### Adding Your Own Azan Files
+The integration now supports **4 flexible audio source options** to meet different user needs:
 
-1. **Place audio files** in Home Assistant's `config/www/solatsyncmy/` directory
-2. **Supported formats**: MP3, WAV, M4A, OGG
-3. **File names**:
-   - `azan.mp3` - For Zohor, Asar, Maghrib, Isyak
-   - `azanfajr.mp3` - For Subuh (different azan)
+### 🔄 **Bundled Audio Files** *(Default)*
+- **Works immediately** - High-quality azan files included (~14MB)
+- **User override** - Replace with your own files anytime
+- **Best for**: Most users who want plug-and-play functionality
 
-### Custom Prayer-Specific Files
+### 📁 **User-Uploaded Files Only**
+- **Complete control** - Use only your own audio files
+- **Smaller integration** - No bundled files included
+- **Best for**: Users who want full customization
 
-You can also use prayer-specific files:
-- `azan_fajr.mp3` or `subuh.mp3` - For Subuh
-- `azan_dhuhr.mp3` or `zohor.mp3` - For Zohor  
-- `azan_asr.mp3` or `asar.mp3` - For Asar
-- `azan_maghrib.mp3` or `maghrib.mp3` - For Maghrib
-- `azan_isha.mp3` or `isyak.mp3` - For Isyak
+### 🌐 **Remote URLs from Internet**
+- **Stream directly** - No local storage required
+- **Centrally managed** - Update audio from anywhere
+- **Best for**: Users with stable internet connections
 
-### Audio File Locations
+### 🔀 **Mixed: Local + Bundled Fallback**
+- **Best of both** - Your files first, bundled as backup
+- **Maximum reliability** - Always has working audio
+- **Best for**: Advanced users wanting flexibility
 
-The integration automatically scans these locations:
-- `/config/www/solatsyncmy/` (recommended)
-- `/config/www/`
-- `/config/media/`
-- `/media/`
-- `/share/`
+### Quick Setup
+1. **Go to Integration Settings**: Settings → Integrations → Solat Sync MY → Configure
+2. **Choose Audio Source**: Select your preferred option from the dropdown
+3. **Configure as needed**: Add URLs for remote, or upload files for local
+4. **Test**: Use the `solatsyncmy.test_audio` service to verify
+
+📖 **[Complete Audio Setup Guide](AUDIO_SETUP.md)** - Detailed instructions for all audio sources, troubleshooting, and advanced configurations.
 
 ## 📊 Entities Created
 

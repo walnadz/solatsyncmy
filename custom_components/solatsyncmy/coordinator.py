@@ -12,9 +12,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    DOMAIN, 
-    API_BASE_URL, 
-    API_TIMEOUT, 
+    DOMAIN,
+    API_BASE_URL,
+    API_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     PRAYER_TIMES,
     PRAYER_NAMES,
@@ -215,7 +215,7 @@ class WaktuSolatCoordinator(DataUpdateCoordinator):
             for prayer in PRAYER_TIMES:
                 prayer_time = next_day_times.get(prayer)
                 if prayer_time:
-                    return {
+        return {
                         "prayer": prayer,
                         "malay_name": PRAYER_NAMES.get(prayer, prayer),
                         "time": prayer_time,

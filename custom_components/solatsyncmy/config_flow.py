@@ -1,5 +1,6 @@
 """Config flow for Waktu Solat Malaysia integration."""
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import voluptuous as vol
@@ -21,6 +22,12 @@ from .const import (
     CONF_AZAN_ISYAK_ENABLED,
     CONF_MEDIA_PLAYER,
     CONF_AZAN_VOLUME,
+    CONF_AUDIO_SOURCE,
+    CONF_REMOTE_AZAN_URL,
+    CONF_REMOTE_FAJR_URL,
+    AUDIO_SOURCE_BUNDLED,
+    AUDIO_SOURCE_OPTIONS,
+    AUDIO_SOURCE_DESCRIPTIONS,
 )
 from .coordinator import WaktuSolatCoordinator
 
@@ -196,8 +203,24 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
                     if not self.hass.states.get(media_player):
                         errors[CONF_MEDIA_PLAYER] = "media_player_not_found"
 
+            # Validate remote URLs if remote audio source is selected
+            audio_source = user_input.get(CONF_AUDIO_SOURCE, AUDIO_SOURCE_BUNDLED)
+            if audio_source == "remote_urls":
+                remote_azan_url = user_input.get(CONF_REMOTE_AZAN_URL, "").strip()
+                remote_fajr_url = user_input.get(CONF_REMOTE_FAJR_URL, "").strip()
+                
+                if not remote_azan_url:
+                    errors[CONF_REMOTE_AZAN_URL] = "remote_url_required"
+                elif not remote_azan_url.startswith(("http://", "https://")):
+                    errors[CONF_REMOTE_AZAN_URL] = "invalid_url_format"
+                
+                if not remote_fajr_url:
+                    errors[CONF_REMOTE_FAJR_URL] = "remote_url_required"
+                elif not remote_fajr_url.startswith(("http://", "https://")):
+                    errors[CONF_REMOTE_FAJR_URL] = "invalid_url_format"
+
             if not errors:
-                return self.async_create_entry(title="", data=user_input)
+                    return self.async_create_entry(title="", data=user_input)
 
         # Get current options
         current_options = self.config_entry.options
@@ -223,6 +246,34 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
                 selector.SelectSelectorConfig(
                     options=media_players,
                     mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Optional(
+                CONF_AUDIO_SOURCE,
+                default=current_options.get(CONF_AUDIO_SOURCE, AUDIO_SOURCE_BUNDLED),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"value": option, "label": AUDIO_SOURCE_DESCRIPTIONS[option]}
+                        for option in AUDIO_SOURCE_OPTIONS
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Optional(
+                CONF_REMOTE_AZAN_URL,
+                default=current_options.get(CONF_REMOTE_AZAN_URL, ""),
+            ): selector.TextSelector(
+                selector.TextSelectorConfig(
+                    type=selector.TextSelectorType.URL,
+                )
+            ),
+            vol.Optional(
+                CONF_REMOTE_FAJR_URL,
+                default=current_options.get(CONF_REMOTE_FAJR_URL, ""),
+            ): selector.TextSelector(
+                selector.TextSelectorConfig(
+                    type=selector.TextSelectorType.URL,
                 )
             ),
             vol.Optional(
@@ -258,8 +309,50 @@ class WaktuSolatOptionsFlowHandler(config_entries.OptionsFlow):
             ): bool,
         })
 
+        # Check for local audio files and build comprehensive info
+        www_audio_dir = self.hass.config.path("www", "solatsyncmy")
+        audio_info_lines = []
+        
+        audio_info_lines.append("🎵 Audio Files Status:")
+        
+        if os.path.exists(www_audio_dir):
+            audio_files = []
+            for file in os.listdir(www_audio_dir):
+                if file.lower().endswith(('.mp3', '.wav', '.m4a', '.ogg', '.flac')):
+                    file_path = os.path.join(www_audio_dir, file)
+                    if os.path.getsize(file_path) > 1024:  # > 1KB
+                        size_kb = os.path.getsize(file_path) // 1024
+                        audio_files.append(f"{file} ({size_kb}KB)")
+            
+            if audio_files:
+                audio_info_lines.append(f"✅ Found {len(audio_files)} file(s):")
+                for file_info in audio_files:
+                    audio_info_lines.append(f"   • {file_info}")
+            else:
+                audio_info_lines.append("⚠️  No valid audio files found")
+                audio_info_lines.append("   Placeholder files will be created")
+        else:
+            audio_info_lines.append("ℹ️  Directory will be created: /config/www/solatsyncmy/")
+            audio_info_lines.append("   Placeholder files will be created")
+        
+        audio_info_lines.append("")
+        audio_info_lines.append("💡 Local Audio Setup:")
+        audio_info_lines.append("• Standard: azan.mp3 (normal), azanfajr.mp3 (fajr)")
+        audio_info_lines.append("• Prayer-specific: azan_subuh.mp3, azan_zohor.mp3, etc.")
+        audio_info_lines.append("• Formats: MP3, WAV, M4A, OGG, FLAC")
+        audio_info_lines.append("• Location: /config/www/solatsyncmy/")
+        audio_info_lines.append("• Served as: http://your-ha:8123/local/solatsyncmy/filename.mp3")
+        audio_info_lines.append("")
+        audio_info_lines.append("📖 See AUDIO_SETUP.md for detailed setup guide")
+        
+        audio_info = "\n".join(audio_info_lines)
+
         return self.async_show_form(
             step_id="init",
             data_schema=data_schema,
             errors=errors,
+            description_placeholders={
+                "audio_info": audio_info,
+                "media_player_info": "Select a media player for automated azan playback"
+            }
         ) 

@@ -20,6 +20,13 @@ from .const import (
     SERVICE_PLAY_AZAN,
     SERVICE_TEST_AUDIO,
     PRAYER_NAMES,
+    CONF_AUDIO_SOURCE,
+    AUDIO_SOURCE_BUNDLED,
+    AUDIO_SOURCE_REMOTE,
+    AUDIO_SOURCE_LOCAL_ONLY,
+    AUDIO_SOURCE_MIXED,
+    CONF_REMOTE_FAJR_URL,
+    CONF_REMOTE_AZAN_URL,
 )
 from .coordinator import WaktuSolatCoordinator
 
@@ -36,7 +43,7 @@ PLATFORMS: list[Platform] = [
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Waktu Solat Malaysia from a config entry."""
     # Setup audio files (bundled and detect local)
-    await _setup_audio_files(hass)
+    await _setup_audio_files(hass, entry)
     
     # Create coordinator
     coordinator = WaktuSolatCoordinator(hass, entry)
@@ -76,58 +83,78 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
         
-    # Unregister services if this is the last entry
+        # Unregister services if this is the last entry
         if not hass.data[DOMAIN]:
-        hass.services.async_remove(DOMAIN, SERVICE_PLAY_AZAN)
-        hass.services.async_remove(DOMAIN, SERVICE_TEST_AUDIO)
+            hass.services.async_remove(DOMAIN, SERVICE_PLAY_AZAN)
+            hass.services.async_remove(DOMAIN, SERVICE_TEST_AUDIO)
     
     return unload_ok
 
 
-async def _setup_audio_files(hass: HomeAssistant) -> None:
-    """Set up audio files for azan playback."""
+async def _setup_audio_files(hass: HomeAssistant, entry: ConfigEntry = None) -> None:
+    """Set up audio files for azan playback based on audio source configuration."""
     try:
+        # Get audio source configuration
+        audio_source = AUDIO_SOURCE_BUNDLED  # Default
+        if entry and entry.options:
+            audio_source = entry.options.get(CONF_AUDIO_SOURCE, AUDIO_SOURCE_BUNDLED)
+        
+        _LOGGER.info("🎵 Setting up audio files with source: %s", audio_source)
+        
         # Create www/solatsyncmy directory
         www_dir = hass.config.path("www")
         audio_dir = os.path.join(www_dir, "solatsyncmy")
-        
         os.makedirs(audio_dir, exist_ok=True)
         
-        # Copy bundled audio files if they don't exist
-        integration_dir = os.path.dirname(__file__)
-        audio_source_dir = os.path.join(integration_dir, "audio")
-        
-        bundled_files = [AZAN_FILE_NORMAL, AZAN_FILE_FAJR]
-        local_files_detected = []
-        
-        for audio_file in bundled_files:
-            target_path = os.path.join(audio_dir, audio_file)
-            source_path = os.path.join(audio_source_dir, audio_file)
+        # Handle different audio source types
+        if audio_source == AUDIO_SOURCE_REMOTE:
+            # Remote URLs - no file setup needed
+            _LOGGER.info("🌐 Using remote audio URLs - no local file setup required")
+            return
             
-            # Check if local file already exists (user manually placed)
-            if os.path.exists(target_path):
-                local_files_detected.append(audio_file)
-                _LOGGER.info("🎵 Local audio file detected: %s", audio_file)
-                continue
+        elif audio_source == AUDIO_SOURCE_LOCAL_ONLY:
+            # Local files only - just scan for existing files
+            await _scan_local_audio_files(hass, audio_dir)
+            _LOGGER.info("📁 Local-only audio source configured")
+            return
             
-            # Copy bundled file if available
-            if os.path.exists(source_path):
-                shutil.copy2(source_path, target_path)
-                _LOGGER.info("📁 Copied bundled audio file: %s", audio_file)
-            else:
-                # Create placeholder file
-                with open(target_path, 'w') as f:
-                    f.write("# Placeholder - Replace with your azan file\n")
-                _LOGGER.warning("⚠️  Created placeholder for missing audio file: %s", audio_file)
-        
-        # Scan for additional local audio files
-        await _scan_local_audio_files(hass, audio_dir)
-        
-        if local_files_detected:
-            _LOGGER.info("🔊 Local audio setup complete! Detected %d custom files", len(local_files_detected))
+        elif audio_source in [AUDIO_SOURCE_BUNDLED, AUDIO_SOURCE_MIXED]:
+            # Bundled files (with override) or mixed fallback
+            integration_dir = os.path.dirname(__file__)
+            audio_source_dir = os.path.join(integration_dir, "audio")
+            
+            bundled_files = [AZAN_FILE_NORMAL, AZAN_FILE_FAJR]
+            local_files_detected = []
+            
+            for audio_file in bundled_files:
+                target_path = os.path.join(audio_dir, audio_file)
+                source_path = os.path.join(audio_source_dir, audio_file)
+                
+                # Check if local file already exists (user manually placed)
+                if os.path.exists(target_path):
+                    local_files_detected.append(audio_file)
+                    _LOGGER.info("🎵 Local audio file detected: %s", audio_file)
+                    continue
+                
+                # Copy bundled file if available
+                if os.path.exists(source_path):
+                    shutil.copy2(source_path, target_path)
+                    _LOGGER.info("📁 Copied bundled audio file: %s", audio_file)
+                else:
+                    # Create placeholder file
+                    with open(target_path, 'w') as f:
+                        f.write("# Placeholder - Replace with your azan file\n")
+                    _LOGGER.warning("⚠️  Created placeholder for missing audio file: %s", audio_file)
+            
+            # Scan for additional local audio files
+            await _scan_local_audio_files(hass, audio_dir)
+            
+            if local_files_detected:
+                _LOGGER.info("🔊 Audio setup complete! Detected %d custom files", len(local_files_detected))
         
     except Exception as err:
         _LOGGER.error("Failed to setup audio files: %s", err)
@@ -189,6 +216,11 @@ async def _scan_local_audio_files(hass: HomeAssistant, audio_dir: str) -> None:
 async def _register_services(hass: HomeAssistant) -> None:
     """Register services for the integration."""
     
+    def get_config_entry():
+        """Get the first config entry for this integration."""
+        entries = hass.config_entries.async_entries(DOMAIN)
+        return entries[0] if entries else None
+    
     async def play_azan_service(call: ServiceCall) -> None:
         """Service to play azan for a specific prayer."""
         prayer = call.data.get("prayer")
@@ -203,7 +235,8 @@ async def _register_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Media player parameter is required")
             return
         
-        await _play_azan_file(hass, prayer, media_player, volume)
+        entry = get_config_entry()
+        await _play_azan_file(hass, prayer, media_player, volume, entry)
     
     async def test_audio_service(call: ServiceCall) -> None:
         """Service to test audio playback with detailed diagnostics."""
@@ -215,7 +248,8 @@ async def _register_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Media player parameter is required")
             return
         
-        await _test_audio_playback(hass, media_player, audio_file, volume)
+        entry = get_config_entry()
+        await _test_audio_playback(hass, media_player, audio_file, volume, entry)
     
     # Register services
     hass.services.async_register(
@@ -241,8 +275,98 @@ async def _register_services(hass: HomeAssistant) -> None:
     )
 
 
-async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, volume: float) -> None:
-    """Play azan file with enhanced error handling and local file support."""
+async def _get_audio_urls(hass: HomeAssistant, prayer: str, audio_source: str, entry: ConfigEntry = None) -> list:
+    """Get audio URLs based on the configured audio source."""
+    audio_urls = []
+    
+    try:
+        if audio_source == AUDIO_SOURCE_REMOTE:
+            # Remote URLs from configuration
+            if entry and entry.options:
+                if prayer == "fajr":
+                    remote_url = entry.options.get(CONF_REMOTE_FAJR_URL, "").strip()
+                else:
+                    remote_url = entry.options.get(CONF_REMOTE_AZAN_URL, "").strip()
+                
+                if remote_url:
+                    audio_urls.append(remote_url)
+                    _LOGGER.debug("🌐 Using remote URL: %s", remote_url)
+                else:
+                    _LOGGER.warning("⚠️  No remote URL configured for %s", prayer)
+        
+        elif audio_source == AUDIO_SOURCE_LOCAL_ONLY:
+            # Local files only - no bundled fallback
+            audio_urls = await _get_local_audio_urls(hass, prayer)
+            
+        elif audio_source == AUDIO_SOURCE_MIXED:
+            # Local preferred, bundled fallback
+            audio_urls = await _get_local_audio_urls(hass, prayer)
+            if not audio_urls:
+                # Fallback to bundled files
+                audio_urls = await _get_bundled_audio_urls(hass, prayer)
+                
+        else:  # AUDIO_SOURCE_BUNDLED (default)
+            # Bundled with user override
+            audio_urls = await _get_bundled_audio_urls(hass, prayer)
+            
+    except Exception as err:
+        _LOGGER.error("Error getting audio URLs: %s", err)
+    
+    return audio_urls
+
+
+async def _get_local_audio_urls(hass: HomeAssistant, prayer: str) -> list:
+    """Get local audio file URLs."""
+    audio_urls = []
+    
+    # Check if user has custom named files first
+    custom_files = [
+        f"azan_{prayer}.mp3",
+        f"adhan_{prayer}.mp3", 
+        f"{PRAYER_NAMES.get(prayer, prayer).lower()}.mp3"
+    ]
+    
+    for custom_file in custom_files:
+        custom_path = hass.config.path("www", "solatsyncmy", custom_file)
+        if os.path.exists(custom_path) and os.path.getsize(custom_path) > 1024:
+            audio_urls.append(f"/local/solatsyncmy/{custom_file}")
+            _LOGGER.debug("✅ Found custom audio file: %s", custom_path)
+            break
+    
+    return audio_urls
+
+
+async def _get_bundled_audio_urls(hass: HomeAssistant, prayer: str) -> list:
+    """Get bundled audio file URLs (with user override)."""
+    audio_urls = []
+    
+    # Determine which azan file to use
+    audio_file = AZAN_FILE_FAJR if prayer == "fajr" else AZAN_FILE_NORMAL
+    
+    # 1. Check for user override first
+    user_override_path = hass.config.path("www", "solatsyncmy", audio_file)
+    if os.path.exists(user_override_path) and os.path.getsize(user_override_path) > 1024:
+        audio_urls.append(f"/local/solatsyncmy/{audio_file}")
+        _LOGGER.debug("✅ Found user override file: %s", user_override_path)
+    
+    # 2. Check if user has custom named files
+    if not audio_urls:
+        local_urls = await _get_local_audio_urls(hass, prayer)
+        audio_urls.extend(local_urls)
+    
+    # 3. Fallback to standard bundled file location
+    if not audio_urls:
+        www_path = f"/local/solatsyncmy/{audio_file}"
+        local_file_path = hass.config.path("www", "solatsyncmy", audio_file)
+        if os.path.exists(local_file_path):
+            audio_urls.append(www_path)
+            _LOGGER.debug("✅ Found bundled audio file: %s", local_file_path)
+    
+    return audio_urls
+
+
+async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, volume: float, entry: ConfigEntry = None) -> None:
+    """Play azan file with enhanced error handling and multiple audio source support."""
     try:
         _LOGGER.info("🕌 Playing %s azan on %s (volume: %.1f)", PRAYER_NAMES.get(prayer, prayer), media_player, volume)
         
@@ -252,35 +376,16 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
             _LOGGER.error("❌ Media player not found: %s", media_player)
             return
         
-        # Determine which azan file to use
-        audio_file = AZAN_FILE_FAJR if prayer == "fajr" else AZAN_FILE_NORMAL
+        # Get audio source configuration
+        audio_source = AUDIO_SOURCE_BUNDLED  # Default
+        if entry and entry.options:
+            audio_source = entry.options.get(CONF_AUDIO_SOURCE, AUDIO_SOURCE_BUNDLED)
         
-        # Try multiple audio file locations
-        audio_urls = []
-        
-        # 1. Local www directory
-        www_path = f"/local/solatsyncmy/{audio_file}"
-        local_file_path = hass.config.path("www", "solatsyncmy", audio_file)
-        if os.path.exists(local_file_path) and os.path.getsize(local_file_path) > 1024:
-            audio_urls.append(www_path)
-            _LOGGER.debug("✅ Found local audio file: %s", local_file_path)
-        
-        # 2. Check if user has custom named files
-        custom_files = [
-            f"azan_{prayer}.mp3",
-            f"adhan_{prayer}.mp3", 
-            f"{PRAYER_NAMES.get(prayer, prayer).lower()}.mp3"
-        ]
-        
-        for custom_file in custom_files:
-            custom_path = hass.config.path("www", "solatsyncmy", custom_file)
-            if os.path.exists(custom_path) and os.path.getsize(custom_path) > 1024:
-                audio_urls.append(f"/local/solatsyncmy/{custom_file}")
-                _LOGGER.debug("✅ Found custom audio file: %s", custom_path)
-                break
+        # Get audio URLs based on source configuration
+        audio_urls = await _get_audio_urls(hass, prayer, audio_source, entry)
         
         if not audio_urls:
-            _LOGGER.error("❌ No audio file found for %s", prayer)
+            _LOGGER.error("❌ No audio source found for %s with source: %s", prayer, audio_source)
             return
         
         # Get current media player state
@@ -337,7 +442,7 @@ async def _play_azan_file(hass: HomeAssistant, prayer: str, media_player: str, v
         _LOGGER.error("❌ Error playing azan: %s", err)
 
 
-async def _test_audio_playback(hass: HomeAssistant, media_player: str, audio_file: str, volume: float) -> None:
+async def _test_audio_playback(hass: HomeAssistant, media_player: str, audio_file: str, volume: float, entry: ConfigEntry = None) -> None:
     """Test audio playback with comprehensive diagnostics."""
     _LOGGER.info("🧪 AUDIO TEST STARTING - Media Player: %s, File: %s, Volume: %.1f", 
                  media_player, audio_file, volume)
@@ -364,7 +469,7 @@ async def _test_audio_playback(hass: HomeAssistant, media_player: str, audio_fil
             _LOGGER.warning("⚠️  Audio file seems too small (%.1f KB) - might be placeholder", file_size/1024)
         
         # Step 3: Test playback
-        await _play_azan_file(hass, "test", media_player, volume)
+        await _play_azan_file(hass, "test", media_player, volume, entry)
         
         _LOGGER.info("🏁 AUDIO TEST COMPLETED")
         
