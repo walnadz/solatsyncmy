@@ -1,10 +1,10 @@
 {
-  "domain": "waktu_solat_malaysia",
+  "domain": "solatsyncmy",
   "name": "Solat Sync MY",
   "codeowners": ["@walnadz"],
   "config_flow": true,
-  "documentation": "https://github.com/walnadz/waktu-solat-malaysia",
-  "issue_tracker": "https://github.com/walnadz/waktu-solat-malaysia/issues",
+  "documentation": "https://github.com/walnadz/solatsyncmy",
+  "issue_tracker": "https://github.com/walnadz/solatsyncmy/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "quality_scale": "silver",
