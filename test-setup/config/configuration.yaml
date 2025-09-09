@@ -1,0 +1,13 @@
+# Test Configuration for Solat Sync MY Integration
+default_config:
+
+# Enable logging for debugging
+logger:
+  default: info
+  logs:
+    custom_components.solatsyncmy: debug
+
+# Example integration configuration
+# This will be configured via UI, but you can also test with YAML:
+# solatsyncmy:
+#   zone: "SGR01"  # Johor Bahru 

@@ -1,0 +1,13 @@
+{
+  "domain": "solatsyncmy",
+  "name": "Solat Sync MY",
+  "codeowners": ["@walnadz"],
+  "config_flow": true,
+  "documentation": "https://github.com/walnadz/solatsyncmy",
+  "issue_tracker": "https://github.com/walnadz/solatsyncmy/issues",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "quality_scale": "silver",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+} 
