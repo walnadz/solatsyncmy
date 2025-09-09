@@ -3,12 +3,11 @@
   "name": "Solat Sync MY",
   "codeowners": ["@walnadz"],
   "config_flow": true,
+  "dependencies": [],
   "documentation": "https://github.com/walnadz/solatsyncmy",
-  "issue_tracker": "https://github.com/walnadz/solatsyncmy/issues",
-  "integration_type": "hub",
+  "homeassistant": "2023.1.0",
   "iot_class": "cloud_polling",
-  "quality_scale": "silver",
-  "requirements": ["aiohttp>=3.8.0"],
-  "version": "1.0.9",
-  "after_dependencies": ["http"]
+  "issue_tracker": "https://github.com/walnadz/solatsyncmy/issues",
+  "requirements": ["requests"],
+  "version": "1.0.10"
 } 
