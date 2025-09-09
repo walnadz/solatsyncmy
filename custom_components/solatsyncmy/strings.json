@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Solat Sync MY Setup",
+        "description": "Configure your Malaysian prayer times integration",
+        "data": {
+          "zone": "Malaysian Zone"
+        }
+      }
+    },
+    "error": {
+      "invalid_zone": "Invalid zone selected"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Solat Sync MY Options",
+        "description": "Configure azan automation and media player settings",
+        "data": {
+          "azan_enabled": "Enable Azan Automation",
+          "media_player": "Media Player",
+          "azan_volume": "Azan Volume",
+          "azan_fajr_enabled": "Enable Fajr Azan",
+          "azan_dhuhr_enabled": "Enable Dhuhr Azan",
+          "azan_asr_enabled": "Enable Asr Azan",
+          "azan_maghrib_enabled": "Enable Maghrib Azan",
+          "azan_isha_enabled": "Enable Isha Azan"
+        }
+      }
+    },
+    "error": {
+      "media_player_required": "Media player is required when azan automation is enabled",
+      "media_player_not_found": "Selected media player was not found"
+    }
+  }
+} 
